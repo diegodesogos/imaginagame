@@ -18,6 +18,7 @@ INSTALLED_APPS = (
     'django.contrib.auth',
     'django.contrib.sessions',
     'djangotoolbox',
+    'permission_backend_nonrel',
     'autoload',
     'dbindexer',
 
@@ -39,6 +40,12 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.core.context_processors.request',
     'django.core.context_processors.media',
 )
+
+AUTHENTICATION_BACKENDS = (
+    'permission_backend_nonrel.backends.NonrelPermissionBackend',
+)
+
+ALLOWED_HOST=['.imaginagame.appspot.com']
 
 # This test runner captures stdout and associates tracebacks with their
 # corresponding output. Helps a lot with print-debugging.

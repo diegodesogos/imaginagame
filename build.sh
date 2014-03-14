@@ -15,6 +15,7 @@ cp -r ${DOWNLOAD_DIR}/django-dbindexer/dbindexer ./dbindexer
 cp -r ${DOWNLOAD_DIR}/django-nonrel/django ./django
 cp -r ${DOWNLOAD_DIR}/djangoappengine/djangoappengine ./djangoappengine
 cp -r ${DOWNLOAD_DIR}/djangotoolbox/djangotoolbox ./djangotoolbox
+cp -r ${DOWNLOAD_DIR}/permission-backend-nonrel/permission_backend_nonrel ./permission_backend_nonrel
 
 [ -f ${DOWNLOAD_DIR}/pip-delete-this-directory.txt ] && rm -rf ${DOWNLOAD_DIR}
 
