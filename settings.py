@@ -7,6 +7,8 @@ import os
 
 # Activate django-dbindexer for the default database
 DATABASES['native'] = DATABASES['default']
+DATABASES['native']['DEV_APPSERVER_OPTIONS'] = { 'high_replication': True, 'use_sqlite': True }
+
 DATABASES['default'] = {'ENGINE': 'dbindexer', 'TARGET': 'native'}
 AUTOLOAD_SITECONF = 'indexes'
 
