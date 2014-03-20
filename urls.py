@@ -1,4 +1,4 @@
-from django.conf.urls.defaults import *
+from django.conf.urls import patterns, include
 from django.contrib import admin
 import dbindexer
 
@@ -11,6 +11,7 @@ admin.autodiscover()
 dbindexer.autodiscover()
 
 urlpatterns = patterns('',
+    ('^core/', include('core.urls')),
     ('^_ah/warmup$', 'djangoappengine.views.warmup'),
     ('^$', 'django.views.generic.simple.direct_to_template', {'template': 'home.html'}),
     ('^admin/', include(admin.site.urls)),

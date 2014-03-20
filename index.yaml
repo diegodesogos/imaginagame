@@ -37,3 +37,33 @@ indexes:
   - name: name
   - name: __key__
     direction: desc
+
+- kind: core_card
+  properties:
+  - name: __key__
+    direction: desc
+
+- kind: core_game
+  properties:
+  - name: __key__
+    direction: desc
+
+- kind: core_gameround
+  properties:
+  - name: __key__
+    direction: desc
+
+- kind: core_player
+  properties:
+  - name: __key__
+    direction: desc
+
+- kind: core_playergamestate
+  properties:
+  - name: __key__
+    direction: desc
+
+- kind: core_playerplay
+  properties:
+  - name: __key__
+    direction: desc

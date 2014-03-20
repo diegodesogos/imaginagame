@@ -19,11 +19,12 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.auth',
     'django.contrib.sessions',
+    'django.contrib.messages',
     'djangotoolbox',
     'permission_backend_nonrel',
     'autoload',
     'dbindexer',
-
+    'core',
     # djangoappengine should come last, so it can override a few manage.py commands
     'djangoappengine',
 )
@@ -31,9 +32,10 @@ INSTALLED_APPS = (
 MIDDLEWARE_CLASSES = (
     # This loads the index definitions, so it has to come first
     'autoload.middleware.AutoloadMiddleware',
-
+    
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
 )
 

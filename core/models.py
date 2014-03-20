@@ -1,56 +1,70 @@
 from django.db import models
 
-"""game states"""
-WAITING_PLAYING_CARD_AND_CONCEPT = 'WAITING_PLAYING_CARD_AND_CONCEPT'
-WAITING_PLAYERS_CHOSEN_CARDS = 'WAITING_PLAYERS_CHOSEN_CARDS'
-VOTING = 'VOTING'
-COMPUTING_ROUND_SCORES = 'COMPUTING_ROUND_SCORES'
-FINISHED = 'FINISHED'
-CURRENT_GAME_STATE_CHOICES = (
-    (WAITING_PLAYING_CARD_AND_CONCEPT, 'WAITING_PLAYING_CARD_AND_CONCEPT'),
-    (WAITING_PLAYERS_CHOSEN_CARDS, 'WAITING_PLAYERS_CHOSEN_CARDS'),
-    (VOTING, 'VOTING'),
-    (COMPUTING_ROUND_SCORES, 'COMPUTING_ROUND_SCORES'),
-    (FINISHED, 'FINISHED'),
-)
+class GameState():
+    """game states"""
+    WAITING_PLAYING_CARD_AND_CONCEPT = 'WAITING_PLAYING_CARD_AND_CONCEPT'
+    WAITING_PLAYERS_CHOSEN_CARDS = 'WAITING_PLAYERS_CHOSEN_CARDS'
+    VOTING = 'VOTING'
+    COMPUTING_ROUND_SCORES = 'COMPUTING_ROUND_SCORES'
+    FINISHED = 'FINISHED'
+    CURRENT_GAME_STATE_CHOICES = (
+        (WAITING_PLAYING_CARD_AND_CONCEPT, 'WAITING_PLAYING_CARD_AND_CONCEPT'),
+        (WAITING_PLAYERS_CHOSEN_CARDS, 'WAITING_PLAYERS_CHOSEN_CARDS'),
+        (VOTING, 'VOTING'),
+        (COMPUTING_ROUND_SCORES, 'COMPUTING_ROUND_SCORES'),
+        (FINISHED, 'FINISHED'),
+    )
 
 class Player(models.Model):
-    id = models.IntegerField()
     name = models.CharField(max_length=200)
+    def __unicode__(self):
+        return 'Player ' + self.name
 
 class Card(models.Model):
-    id = models.IntegerField()
     url = models.CharField(max_length=400)
     description = models.CharField(max_length=200)
+    def __unicode__(self):
+        return 'Card url: ' + self.url + ' Description: ' +self.description
 
 class PlayerGameState(models.Model):
+    game = models.ForeignKey('Game', related_name='playergamestates')
     player = models.ForeignKey(Player)
-    player_state_url = models.CharField(max_length=400)
-    points = models.IntegerField()
-    cards = models.ManyToManyField(Card)
+    player_state_id = models.CharField(max_length=400)
+    points = models.IntegerField(default=0)
+    cards = models.ManyToManyField(Card, related_name='playerstatecards+')
+    def __unicode__(self):
+        return 'PlayerGameState: player ' + self.player.name + ' Points: ' +self.points.str() + ' Cards: ' + self.cards.str()
  
 class Game(models.Model):
-    id = models.IntegerField()
-    board_url = models.CharField(max_length=400)
-    player_states = models.ManyToManyField(PlayerGameState)
-    turn = models.IntegerField()
-    rounds = models.ManyToManyField('GameRound')
+    board_id = models.CharField(max_length=400)
+    creation_date = models.DateTimeField('date created')
     current_state = models.CharField(max_length=40,
-                                      choices=CURRENT_GAME_STATE_CHOICES,
-                                      default=WAITING_PLAYING_CARD_AND_CONCEPT)
+                                      choices=GameState.CURRENT_GAME_STATE_CHOICES,
+                                      default=GameState.WAITING_PLAYING_CARD_AND_CONCEPT)
+    def __unicode__(self):
+        return 'Game: unique id ' + self.board_id + \
+                ' Game state: ' + self.current_state
     
 class PlayerPlay(models.Model):
-    player = models.ForeignKey(Player)
-    selected_card = models.ForeignKey(Card)
-    unchosen_cards = models.ManyToManyField(Card) 
-    voted_by_players = models.ManyToManyField(Player)    
+    game_round = models.ForeignKey('GameRound', related_name='plays')
+    owner_player = models.ForeignKey(Player, related_name='plays')
+    selected_card = models.ForeignKey(Card, related_name='+')
+    unchosen_cards = models.ManyToManyField(Card, related_name='unchosen_cards+') 
+    voted_by_players = models.ManyToManyField(Player, related_name='vote_by_players+')   
+    def __unicode__(self):
+        return 'PlayerPlay: owner ' + self.owner_player.name + \
+                ' Selected card ' + self.selected_card.url + \
+                ' Unchosen cards: ' + self.unchosen_cards.str()
     
 class GameRound(models.Model):
-    game = models.ForeignKey(Game)
-    presenter_player = models.ForeignKey(Player)
-    presenter_selected_card = models.ForeignKey(Card)
-    presenter_concept_for_selected_card = models.CharField()
-    plays = models.ManyToManyField(PlayerPlay)
-    
+    game = models.ForeignKey(Game, related_name='rounds')
+    storyteller_player = models.ForeignKey(Player, related_name='+')
+    storyteller_selected_card = models.ForeignKey(Card, related_name='+')
+    storyteller_sentence_for_selected_card = models.CharField(max_length=1000)
+    def __unicode__(self):
+        return 'GameRound: game ' + self.game.board_id + \
+                ' Storyteller ' + self.storyteller_player.name + \
+                ' Storyteller selected card: ' + self.storyteller_selected_card.url + \
+                ' Storyteller sentence: ' + self.storyteller_sentence_for_selected_card 
     
     
