@@ -36,7 +36,7 @@ class PlayerGameState(models.Model):
     points = models.IntegerField(default=0)
     cards = ListField(models.ForeignKey(Card))
     def __unicode__(self):
-        return 'PlayerGameState: player ' + self.player.name + ' Points: ' +self.points.str() + ' Cards: ' + self.cards.str()
+        return 'PlayerGameState: player ' + self.player.name + ' Points: ' + str(self.points) + ' Cards: ' + ', '.join(str(x) for x in self.cards)
  
 class Game(models.Model):
     board_id = models.CharField(max_length=400)
@@ -58,7 +58,7 @@ class Game(models.Model):
     def next_storyteller_playergamestate(self):
         '@rtype PlayerGameState'
         current_storyteller_order = self.current_storyteller_playergamestate().order
-        next_storyteller_order = (current_storyteller_order + 1) % self.playergamestates.count
+        next_storyteller_order = (current_storyteller_order + 1) % self.playergamestates.count()
         return self.playergamestates.get(order=next_storyteller_order)
             
     def __unicode__(self):

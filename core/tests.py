@@ -37,12 +37,23 @@ class GameTest(TestCase):
         self.assertEqual(game.playergamestates.count(), 3)
         playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url0')
         #matches one single card
-        print '-------'
-        print playergamestate.cards
-        print '-------'
         card_id = playergamestate.cards[0]
         '@type card: Card'
         card = Card.objects.get(url="url0")
         self.assertEqual(card_id, card.id)
+        
+    def test_game_current_storyteller_when_no_rounds(self):
+        '@type game: Game'
+        game = Game.objects.get(board_id='board 1')
+        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url0')
+        current_storyteller =  game.current_storyteller_playergamestate()
+        self.assertEqual(current_storyteller, playergamestate)
+        
+    def test_game_next_storyteller_when_no_rounds(self):
+        '@type game: Game'
+        game = Game.objects.get(board_id='board 1')
+        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url0')
+        current_storyteller =  game.current_storyteller_playergamestate()
+        self.assertEqual(current_storyteller, playergamestate)    
         
        
