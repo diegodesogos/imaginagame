@@ -69,8 +69,8 @@ class PlayerPlay(models.Model):
     game_round = models.ForeignKey('GameRound', related_name='plays')
     owner_player = models.ForeignKey(Player, related_name='plays')
     selected_card = models.ForeignKey(Card, related_name='+')
-    unchosen_cards = models.ManyToManyField(Card, related_name='unchosen_cards+') 
-    voted_by_players = models.ManyToManyField(Player, related_name='vote_by_players+')
+    unchosen_cards = ListField(models.ForeignKey(Card))
+    voted_by_players = ListField(models.ForeignKey(PlayerGameState))
     storyteller = models.BooleanField(default=False)   
     def __unicode__(self):
         return 'PlayerPlay: owner ' + self.owner_player.name + \
