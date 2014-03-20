@@ -52,8 +52,8 @@ class GameTest(TestCase):
     def test_game_next_storyteller_when_no_rounds(self):
         '@type game: Game'
         game = Game.objects.get(board_id='board 1')
-        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url0')
-        current_storyteller =  game.current_storyteller_playergamestate()
-        self.assertEqual(current_storyteller, playergamestate)    
+        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url1')
+        next_storyteller =  game.next_storyteller_playergamestate()
+        self.assertEqual(next_storyteller, playergamestate)    
         
        
