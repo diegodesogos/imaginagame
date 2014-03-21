@@ -6,7 +6,7 @@ Replace this with more appropriate tests for your application.
 """
 
 from django.test import TestCase
-from core.models import Game, Card, Player, PlayerGameState
+from core.models import Game, Card, Player, GameState
 
 class GameTest(TestCase):
     def setUp(self):
@@ -22,11 +22,14 @@ class GameTest(TestCase):
             for cardidx in range(idx, idx+5):
                 card_id = idx*5 + cardidx
                 card = Card.objects.get(url='url'+`card_id`)
-                print card.url
-                print a_playerstate.cards
-                a_playerstate.cards.append(card.id)
-                a_playerstate.save()
+                a_playerstate.add_card(card)
         game.save()
+    
+    def tets_game_players_count(self):
+        '@type game: Game'
+        game = Game.objects.get(board_id='board 1')
+        self.assertEqual(game.players_count(), 3)
+        
     
     def test_creation(self):
         '@type game: Game'
@@ -56,4 +59,32 @@ class GameTest(TestCase):
         next_storyteller =  game.next_storyteller_playergamestate()
         self.assertEqual(next_storyteller, playergamestate)    
         
-       
+    def test_create_first_game_round(self):
+        '@type game: Game'
+        game = Game.objects.get(board_id='board 1')
+        '@type playergamestate: PlayerGameState'
+        playergamestate = game.current_storyteller_playergamestate()
+        #get second card from storyteller
+        selected_card = playergamestate.get_card(2)
+        new_game_round = game.new_round(playergamestate, selected_card, 'I have selected the card positioned at 2')
+        self.assertEqual(new_game_round, game.current_round())
+        self.assertEqual(playergamestate, game.current_storyteller_playergamestate())
+        self.assertEqual(game.current_state, GameState.WAITING_PLAYERS_CHOSEN_CARDS)
+        
+    def test_game_play_card_chosen(self):
+        '@type game: Game'
+        game = Game.objects.get(board_id='board 1')
+        storyteller = game.current_storyteller_playergamestate()
+        selected_card = storyteller.get_card(2)
+        game.new_round(storyteller, selected_card, 'I have selected the card positioned at 2')
+        self.assertEqual(game.current_state, GameState.WAITING_PLAYERS_CHOSEN_CARDS)
+        self.assertIsNotNone(game.current_round())
+        #storyteller should not be able to play
+        self.assertRaises(ValueError, game.play_card_chosen, storyteller, selected_card)
+        #verify other players can play
+        playergamestate2 = game.get_playergamestate_for_player(Player.objects.get(name='player' + str(2)))
+        selected_card2 = playergamestate2.get_card(2)
+        game.play_card_chosen(playergamestate2, selected_card2)
+        #verify a player cannot play another player's card
+        self.assertRaises(ValueError, game.play_card_chosen, playergamestate2, selected_card)
+        self.assertEqual(game.current_state, GameState.WAITING_PLAYERS_CHOSEN_CARDS)
