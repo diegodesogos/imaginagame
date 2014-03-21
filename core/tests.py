@@ -82,9 +82,42 @@ class GameTest(TestCase):
         #storyteller should not be able to play
         self.assertRaises(ValueError, game.play_card_chosen, storyteller, selected_card)
         #verify other players can play
-        playergamestate2 = game.get_playergamestate_for_player(Player.objects.get(name='player' + str(2)))
-        selected_card2 = playergamestate2.get_card(2)
-        game.play_card_chosen(playergamestate2, selected_card2)
+        playergamestate1 = game.get_playergamestate_for_player(Player.objects.get(name='player' + str(1)))
+        selected_card2 = playergamestate1.get_card(2)
+        game.play_card_chosen(playergamestate1, selected_card2)
         #verify a player cannot play another player's card
-        self.assertRaises(ValueError, game.play_card_chosen, playergamestate2, selected_card)
+        self.assertRaises(ValueError, game.play_card_chosen, playergamestate1, selected_card)
         self.assertEqual(game.current_state, GameState.WAITING_PLAYERS_CHOSEN_CARDS)
+        #verify that once all three players chosen a card, the game changes to voting stage
+        playergamestate2 = game.get_playergamestate_for_player(Player.objects.get(name='player' + str(2)))
+        selected_card3 = playergamestate2.get_card(3)
+        game.play_card_chosen(playergamestate2, selected_card3)
+        self.assertEqual(game.current_state, GameState.VOTING)
+        
+    def test_game_vote_card(self):
+        '@type game: Game'
+        game = Game.objects.get(board_id='board 1')
+        storyteller = game.current_storyteller_playergamestate()
+        selected_card = storyteller.get_card(2)
+        playergamestate1 = game.get_playergamestate_for_player(Player.objects.get(name='player' + str(1)))
+        playergamestate2 = game.get_playergamestate_for_player(Player.objects.get(name='player' + str(2)))
+        game.new_round(storyteller, selected_card, 'I have selected the card positioned at 2')
+        selected_card2 = playergamestate1.get_card(2)
+        game.play_card_chosen(playergamestate1, selected_card2)
+        selected_card3 = playergamestate2.get_card(2)
+        game.play_card_chosen(playergamestate2, selected_card3)
+        cards = game.get_current_round_chosen_cards()
+        print '---- CARDS IN PLAY---'
+        print cards
+        print '---- END CARDS IN PLAY---'
+        print '---- STORY TELLER CHOSEN CARD'
+        print game.get_current_round_storyteller_chosen_card()
+        print '---- END STORY TELLER CHOSEN CARD---'
+        selectedcard1 = cards[0]
+        selectedcard2 = cards[0]
+        game.vote_card(playergamestate1, selectedcard1)
+        self.assertEqual(game.current_state, GameState.VOTING)
+        game.vote_card(playergamestate2, selectedcard2)
+        self.assertEqual(game.current_state, GameState.WAITING_STORYTELLER_NEW_ROUND)
+        #TODO make asserts of game score for each player
+        

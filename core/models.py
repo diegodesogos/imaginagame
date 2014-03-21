@@ -61,6 +61,7 @@ class PlayerGameState(models.Model):
 class Game(models.Model):
     board_id = models.CharField(max_length=400)
     creation_date = models.DateTimeField(default=datetime.now, blank=True)
+    points_goal = models.IntegerField(default=30)
     current_state = models.CharField(max_length=40,
                                       choices=GameState.CURRENT_GAME_STATE_CHOICES,
                                       default=GameState.WAITING_STORYTELLER_NEW_ROUND)
@@ -118,7 +119,7 @@ class Game(models.Model):
                                  storyteller_selected_card = selected_card,
                                  storyteller_sentence_for_selected_card = sentence
                                  )
-        new_game_round.play_card_chosen(playerstate, selected_card)
+        new_game_round.play_card_chosen(playerstate, selected_card, True)
         return new_game_round
         
     def play_card_chosen(self, playerstate, selected_card):        
@@ -127,12 +128,67 @@ class Game(models.Model):
         '@rtype GameRound'
         current_round = self.current_round()
         playerplay = current_round.play_card_chosen(playerstate, selected_card)
-        if (current_round.all_players_card_chosen()):
+        if (current_round.all_players_chosen_cards()):
             self.current_state = GameState.VOTING
         return playerplay
 
     def get_playergamestate_for_player(self, player):
         return self.playergamestates.get(player = player)
+    
+    def get_all_playergamestates(self):
+        return self.playergamestates.all()
+    
+    def get_current_play_for_playerstate(self, playerstate):
+        current_round = self.current_round()
+        # check opened round
+        if not current_round:
+            raise ValueError('No current round for game ' + self.board_id)
+        return self.current_round().get_current_play_for_playerstate(playerstate)
+    
+    def get_current_round_chosen_cards(self):
+        current_round = self.current_round()
+        #check opened round
+        if not current_round:
+            raise ValueError('No current round for game ' + self.board_id)
+        return current_round.get_chosen_cards()
+    def get_current_round_storyteller_chosen_card(self):
+        current_round = self.current_round()
+        #check opened round
+        if not current_round:
+            raise ValueError('No current round for game ' + self.board_id)
+        return current_round.storyteller_chosen_card()
+    
+    def vote_card(self, playerstate, selected_card):
+        if self.current_state != GameState.VOTING:
+            raise ValueError("Current game state does not allow voting!")
+        '@type GameRound'
+        current_round = self.current_round()
+        # check opened round
+        if not current_round:
+            raise ValueError('No current round for game ' + self.board_id)
+        # check opened round
+        if not current_round.opened:
+            raise ValueError('This game round is already closed ' + self.board_id)
+        play = self.get_current_play_for_playerstate(playerstate)
+        if play.selected_card == selected_card:
+            raise ValueError('Player cannot vote to its selected card! ' + self.board_id)
+        current_round.vote_card(playerstate, selected_card)
+        if not current_round.opened:
+            self.prepare_for_next_round(current_round)
+    
+    '''
+    Private
+    All players played a card, all players voted, round is over
+    compute scores and prepare for next round
+    '''
+    def prepare_for_next_round(self, current_round):
+        #next state may be WAITING_STORYTELLER_NEW_ROUND or FINISHED according to scores
+        self.current_state = GameState.WAITING_STORYTELLER_NEW_ROUND
+        for playerstate in self.playergamestates.all():
+            playerstate.points += current_round.get_current_play_for_playerstate(playerstate).points
+            if (playerstate.points >= self.points_goal):
+                self.current_state = GameState.FINISHED
+        self.save()
 
     
 class PlayerPlay(models.Model):
@@ -142,6 +198,9 @@ class PlayerPlay(models.Model):
     unchosen_cards = ListField(models.ForeignKey(Card))
     voted_by_players = ListField(models.ForeignKey(PlayerGameState))
     storyteller = models.BooleanField(default=False)   
+    #cache calculated value to avoid recomputing sums each time
+    #this is calculated once the round where this play was performed is closed
+    points = models.IntegerField(default=0)    
     def __unicode__(self):
         return 'PlayerPlay \n  owner: ' + self.owner_player.player.name + \
                 ' \n  Storyteller: ' + str(self.storyteller) + \
@@ -151,6 +210,14 @@ class PlayerPlay(models.Model):
         for card in cards:
             self.unchosen_cards.append(card.id)
         self.save()
+    def vote_playerstate(self, playerstate):
+        self.voted_by_players.append(playerstate.id)
+        self.save()
+    def voted_by_playerstate(self, playerstate):
+        for vote in self.voted_by_players:
+            if playerstate.id == vote:
+                return True
+        return False
     
 class GameRound(models.Model):
     game = models.ForeignKey(Game, related_name='rounds')
@@ -165,7 +232,7 @@ class GameRound(models.Model):
                 ' Storyteller selected card: ' + self.storyteller_selected_card.url + \
                 ' Storyteller sentence: ' + self.storyteller_sentence_for_selected_card 
                 
-    def play_card_chosen(self, playerstate, selected_card):
+    def play_card_chosen(self, playerstate, selected_card, storyteller=False):
         '@type playerstate: PlayerGameState'
         '@type selected_card: Card'
         if not self.opened:
@@ -178,16 +245,73 @@ class GameRound(models.Model):
         unchosen_cards = playerstate.remaining_cards(selected_card)
         new_play = PlayerPlay.objects.create(game_round = self,
                                              owner_player = playerstate,
-                                             selected_card = selected_card
+                                             selected_card = selected_card,
+                                             storyteller=storyteller
                                              )
         new_play.set_unchosen_cards(unchosen_cards)
         self.plays.add(new_play)
-        playerstate.remove_card(selected_card.id)
+        playerstate.remove_card(selected_card)
         self.save()
         return new_play
     
-    def all_players_card_chosen(self):
+    def all_players_chosen_cards(self):
         return self.game.players_count() == self.plays.all().count()
+    
+    def get_vote_count(self):
+        votes = 0
+        for play in self.plays.all():
+            votes =  votes +  len(play.voted_by_players)
+        return votes
+    
+    def all_players_voted(self):
+        votes = self.get_vote_count()
+        #the storyteller does not vote
+        return self.game.players_count() == (votes+1)
+    
+    def storyteller_chosen_card(self):
+        return self.plays.get(storyteller=True).selected_card
+    
+    def get_chosen_cards(self):
+        cards = []
+        for play in self.plays.all():
+            cards.append(play.selected_card)
+        return cards
+    
+    def get_current_play_for_playerstate(self, playerstate):
+        return self.plays.get(owner_player=playerstate)
+    
+    def get_playerplay_voted_by_playerstate(self, playerstate):
+        for play in self.plays.all():
+            if play.voted_by_playerstate(playerstate):
+                return play
+        return None
+
+    def get_playerplay_for_card(self, card):
+        for play in self.plays.all():
+            if play.selected_card == card:
+                    return play
+        return None
+    
+    def vote_card(self, playerstate, selected_card):
+        if not self.opened:
+            raise ValueError('This game round is already closed!')
+        if self.get_playerplay_voted_by_playerstate(playerstate):
+            raise ValueError('The player ' +  playerstate.player.name + ' already voted on this round!')
+        play =  self.get_playerplay_for_card(selected_card)
+        play.vote_playerstate(playerstate)
+        if (self.all_players_voted()):
+            self.compute_round_scores()
+        self.save()
+        
+    '''
+    Private
+    called once everybody played
+    '''
+    def compute_round_scores(self):
+        if not self.opened:
+            raise ValueError('This game round is already closed!')
+        self.opened = False
+        
         
             
     
