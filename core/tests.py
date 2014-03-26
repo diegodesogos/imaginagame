@@ -6,23 +6,21 @@ Replace this with more appropriate tests for your application.
 """
 
 from django.test import TestCase
-from core.models import Game, Card, Player, GameState
+from core.models import Game, Card, Player, GameState, Deck
 
 class GameTest(TestCase):
     def setUp(self):
         '@type game: Game'
-        game = Game.objects.create(board_id='board 1')
-        for idx in range(0, 20):
-            Card.objects.create(url='url' +`idx`, description='card '+`idx`)
+        deck = Deck.objects.create(name='deck1')
+        for idx in range(0, 30):
+            deck.create_card(url='url' +`idx`, name='card '+`idx`)
+        game = Game.objects.create(board_id='board 1', deck=deck)
+
         for idx in range(0, 3):
             a_player= Player.objects.create(name='player' +`idx`)
-            player_order = idx
             '@type a_playerstate: PlayerGameState'
-            a_playerstate = game.playergamestates.create(order=player_order,player=a_player, player_state_id='playerstate_player_url'+`idx`)
-            for cardidx in range(idx, idx+5):
-                card_id = idx*5 + cardidx
-                card = Card.objects.get(url='url'+`card_id`)
-                a_playerstate.add_card(card)
+            game.create_playerstate(a_player)
+        game.start_with_current_players()
         game.save()
     
     def tets_game_players_count(self):
@@ -34,21 +32,17 @@ class GameTest(TestCase):
     def test_creation(self):
         '@type game: Game'
         game = Game.objects.get(board_id='board 1')
-        self.assertEqual(Card.objects.all().count(), 20)
+        self.assertEqual(Card.objects.all().count(), 30)
         self.assertEqual(Player.objects.all().count(), 3)
         self.assertEqual(game.board_id, 'board 1')
-        self.assertEqual(game.playergamestates.count(), 3)
-        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url0')
-        #matches one single card
-        card_id = playergamestate.cards[0]
-        '@type card: Card'
-        card = Card.objects.get(url="url0")
-        self.assertEqual(card_id, card.id)
+        self.assertEqual(game.playergamestates.all().count(), 3)
+        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url1')
+        self.assertEqual(6, len(playergamestate.cards))
         
     def test_game_current_storyteller_when_no_rounds(self):
         '@type game: Game'
         game = Game.objects.get(board_id='board 1')
-        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url0')
+        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url1')
         current_storyteller =  game.current_storyteller_playergamestate()
         self.assertEqual(current_storyteller, playergamestate)
         

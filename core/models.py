@@ -1,14 +1,17 @@
 from django.db import models
 from datetime import datetime
 from djangotoolbox.fields import ListField
+import random
 
 class GameState():
     """game states"""
+    WAITING_NEW_PLAYERS = 'WAITING_NEW_PLAYERS'
     WAITING_STORYTELLER_NEW_ROUND = 'WAITING_STORYTELLER_NEW_ROUND'
     WAITING_PLAYERS_CHOSEN_CARDS = 'WAITING_PLAYERS_CHOSEN_CARDS'
     VOTING = 'VOTING'
     FINISHED = 'FINISHED'
     CURRENT_GAME_STATE_CHOICES = (
+        (WAITING_NEW_PLAYERS, 'WAITING_NEW_PLAYERS'),
         (WAITING_STORYTELLER_NEW_ROUND, 'WAITING_STORYTELLER_NEW_ROUND'),
         (WAITING_PLAYERS_CHOSEN_CARDS, 'WAITING_PLAYERS_CHOSEN_CARDS'),
         (VOTING, 'VOTING'),
@@ -19,12 +22,31 @@ class Player(models.Model):
     name = models.CharField(max_length=200)
     def __unicode__(self):
         return 'Player ' + self.name
+    
+class Deck(models.Model):
+    name = models.CharField(max_length=200, default='unnamed')
+    description = models.CharField(max_length=200, default='none')
+    author = models.CharField(max_length=200, default='unknown')
+    def __unicode__(self):
+        return 'Deck ' + self.name
+    def create_card(self, url, name):
+        card = Card.objects.create(url=url, name=name, deck=self)
+        return card
+    def cards_count(self):
+        return len(self.get_cards())
+    
+    def get_cards(self):
+        return self.cards.all()
+    
+    def get_card(self, card_id):
+        return self.cards.get(id=card_id)
 
 class Card(models.Model):
     url = models.CharField(max_length=400)
-    description = models.CharField(max_length=200)
+    name = models.CharField(max_length=200)
+    deck = models.ForeignKey(Deck, related_name='cards')
     def __unicode__(self):
-        return 'Card url: ' + self.url + ' Description: ' +self.description
+        return 'Card url: ' + self.url + ' Name: ' +self.name
 
 class PlayerGameState(models.Model):
     game = models.ForeignKey('Game', related_name='playergamestates')
@@ -34,7 +56,7 @@ class PlayerGameState(models.Model):
     points = models.IntegerField(default=0)
     cards = ListField(models.ForeignKey(Card))
     def __unicode__(self):
-        return 'PlayerGameState: player ' + self.player.name + ' Points: ' + str(self.points) + ' Cards: ' + ', '.join(str(x) for x in self.cards)
+        return 'PlayerGameState: player ' + self.player.name + ' player_state_id: ' + self.player_state_id + ' Points: ' + str(self.points) + ' Cards: ' + ', '.join(str(x) for x in self.cards)
     def has_card(self, card):
         return card.id in self.cards
     def get_card(self, idx):
@@ -57,18 +79,41 @@ class PlayerGameState(models.Model):
     def remove_card(self, card):
         self.cards.remove(card.id)
         self.save()
+    def add_round_points(self, round_points):
+        self.points += round_points
+        self.save()
  
 class Game(models.Model):
     board_id = models.CharField(max_length=400)
+    deck = models.ForeignKey(Deck)
+    #the cards that will be draw during the game, each time a card is assigned to a player it is removed from this list
+    remaining_cards = ListField(models.ForeignKey(Card))
     creation_date = models.DateTimeField(default=datetime.now, blank=True)
+    #can be 0 to play till deck of cards is exhausted
     points_goal = models.IntegerField(default=30)
     current_state = models.CharField(max_length=40,
                                       choices=GameState.CURRENT_GAME_STATE_CHOICES,
-                                      default=GameState.WAITING_STORYTELLER_NEW_ROUND)
+                                      default=GameState.WAITING_NEW_PLAYERS)
                   
     def __unicode__(self):
         return 'Game: unique id ' + self.board_id + \
                 ' Game state: ' + self.current_state    
+    
+    def create_playerstate(self, player=None):
+        if self.current_state != GameState.WAITING_NEW_PLAYERS:
+            raise ValueError("Current game state does not allow to add new players!")
+        new_player = player  
+        if not new_player:
+            new_player = Player.objects.create('anon')
+            new_player.save()
+        count = self.players_count()    
+        next_id = count+1
+        player_url = 'playerstate_player_url'+`next_id`
+        new_player_state = PlayerGameState.objects.create(game=self, order = count, player = new_player, player_state_id = player_url)
+        print 'Created player' + new_player_state.player_state_id
+        self.playergamestates.add(new_player_state)
+        self.save()
+        return new_player_state
                 
     def players_count(self):
         return self.playergamestates.all().count()            
@@ -89,10 +134,24 @@ class Game(models.Model):
             #get the storyteller from the last round played
             return last_round.storyteller_player
     def next_storyteller_playergamestate(self):
+        last_round = self.current_round()
+        if not last_round:
+            return self.current_storyteller_playergamestate()
         '@type PlayerGameState'
         current_storyteller_order = self.current_storyteller_playergamestate().order
-        next_storyteller_order = (current_storyteller_order + 1) % self.playergamestates.count()
+        next_storyteller_order = (current_storyteller_order + 1) % self.playergamestates.all().count()
         return self.playergamestates.get(order=next_storyteller_order)
+    
+    
+    def start_with_current_players(self):
+        if self.current_state != GameState.WAITING_NEW_PLAYERS:
+            raise ValueError("Current game state does not allow to start the game!")
+        if self.players_count() < self.min_players_count():
+            raise ValueError('There are not enough players to start the game!')
+        self.current_state = GameState.WAITING_STORYTELLER_NEW_ROUND
+        self.draw_cards()
+        self.save()
+        
     
     def new_round(self, playerstate, selected_card, sentence):
         if self.current_state != GameState.WAITING_STORYTELLER_NEW_ROUND:
@@ -186,10 +245,60 @@ class Game(models.Model):
         self.current_state = GameState.WAITING_STORYTELLER_NEW_ROUND
         for playerstate in self.playergamestates.all():
             playerstate.points += current_round.get_current_play_for_playerstate(playerstate).points
-            if (playerstate.points >= self.points_goal):
+            if self.points_goal > 0 and playerstate.points >= self.points_goal:
                 self.current_state = GameState.FINISHED
+        if self.are_enough_cards_for_another_round():
+            self.draw_cards()
+        else:
+            self.current_state = GameState.FINISHED
         self.save()
-
+    
+    def init_remaining_cards_pool(self):
+        for card in self.deck.get_cards():
+            self.remaining_cards.append(card.id)
+        random.shuffle(self.remaining_cards)
+            
+    def are_enough_cards_for_another_round(self):
+        return  len(self.remaining_cards) >= self.players_count()
+    
+    def get_playerstates(self):
+        return self.playergamestates.all()
+   
+    '''
+    private draw a card from remaining_cards
+    ''' 
+    def draw_card(self):
+        card_id = self.remaining_cards.pop(0)
+        return self.deck.get_card(card_id)
+    
+                
+    '''how many cards per player'''
+    def player_card_count(self):
+        return 6
+    
+    '''how many cards per player'''
+    def min_players_count(self):
+        return 3
+    
+    '''
+    private draw card_count cards to playerstate
+    '''
+    def draw_cards_to_players(self, card_count):
+        for playerstate in self.get_playerstates():
+            for _ in range(card_count):
+                        card = self.draw_card()
+                        playerstate.add_card(card)
+        
+    def draw_cards(self):
+        if (self.current_state != GameState.FINISHED and len(self.remaining_cards) == 0):
+            self.init_remaining_cards_pool()
+            self.draw_cards_to_players(self.player_card_count())
+        else:
+            #we have to redraw one card to each player
+            if not self.are_enough_cards_for_another_round():
+                raise ValueError('There are not enough cards in the deck!')
+            self.draw_cards_to_players(1)
+        self.save()
     
 class PlayerPlay(models.Model):
     game_round = models.ForeignKey('GameRound', related_name='plays')
@@ -218,6 +327,22 @@ class PlayerPlay(models.Model):
             if playerstate.id == vote:
                 return True
         return False
+    '''
+    Called by GameRound when the round is closed. 
+    Computes the round total points obtained by this player.
+    It caches the value in player's point field. Once the round is called, 
+    it is safe to directly ask for the points by accessing points field
+    '''
+    def compute_round_scores(self, storyteller_card, total_plays):
+        total_votes = len(self.voted_by_players)
+        if (self.storyteller):
+            if ((total_votes != total_plays) and (total_votes > 0)):
+                self.points = 3
+        else:
+            self.points = total_votes
+        self.owner_player.add_round_points(self.points)
+        self.save()
+        return self.points
     
 class GameRound(models.Model):
     game = models.ForeignKey(Game, related_name='rounds')
@@ -311,7 +436,13 @@ class GameRound(models.Model):
         if not self.opened:
             raise ValueError('This game round is already closed!')
         self.opened = False
-        
+        all_plays = self.plays.all()
+        total_plays = all_plays.count()
+        storyteller_card = self.storyteller_chosen_card()
+        for play in all_plays:
+            '@type play: PlayerPlay'
+            play.compute_round_scores(storyteller_card, total_plays)
+            
         
             
     
