@@ -3,6 +3,9 @@ from datetime import datetime
 from djangotoolbox.fields import ListField
 import random
 
+import core.const
+logger =  core.const.configureLogger('models')
+
 class GameState():
     """game states"""
     WAITING_NEW_PLAYERS = 'WAITING_NEW_PLAYERS'
@@ -46,7 +49,7 @@ class Card(models.Model):
     name = models.CharField(max_length=200)
     deck = models.ForeignKey(Deck, related_name='cards')
     def __unicode__(self):
-        return 'Card url: ' + self.url + ' Name: ' +self.name
+        return self.name
 
 class PlayerGameState(models.Model):
     game = models.ForeignKey('Game', related_name='playergamestates')
@@ -56,7 +59,10 @@ class PlayerGameState(models.Model):
     points = models.IntegerField(default=0)
     cards = ListField(models.ForeignKey(Card))
     def __unicode__(self):
-        return 'PlayerGameState: player ' + self.player.name + ' player_state_id: ' + self.player_state_id + ' Points: ' + str(self.points) + ' Cards: ' + ', '.join(str(x) for x in self.cards)
+        return 'player {0} player_state_id: {1} Points: {2} Cards: {3}'.format(self.player.name,
+                                                                                                self.player_state_id,
+                                                                                                self.points,
+                                                                                                self.get_cards())
     def has_card(self, card):
         return card.id in self.cards
     def get_card(self, idx):
@@ -80,7 +86,8 @@ class PlayerGameState(models.Model):
         self.cards.remove(card.id)
         self.save()
     def add_round_points(self, round_points):
-        self.points += round_points
+        self.points = self.points + round_points
+        logger.debug("ADDING POINTS TO player %s . Round points: %d . NEW TOTAL: %d", self.player_state_id, round_points, self.points)
         self.save()
  
 class Game(models.Model):
@@ -110,7 +117,7 @@ class Game(models.Model):
         next_id = count+1
         player_url = 'playerstate_player_url'+`next_id`
         new_player_state = PlayerGameState.objects.create(game=self, order = count, player = new_player, player_state_id = player_url)
-        print 'Created player' + new_player_state.player_state_id
+        logger.debug('Created player %s', new_player_state)
         self.playergamestates.add(new_player_state)
         self.save()
         return new_player_state
@@ -299,6 +306,9 @@ class Game(models.Model):
                 raise ValueError('There are not enough cards in the deck!')
             self.draw_cards_to_players(1)
         self.save()
+        
+    def is_game_over(self):
+        return self.current_state == GameState.FINISHED
     
 class PlayerPlay(models.Model):
     game_round = models.ForeignKey('GameRound', related_name='plays')
@@ -320,6 +330,7 @@ class PlayerPlay(models.Model):
             self.unchosen_cards.append(card.id)
         self.save()
     def vote_playerstate(self, playerstate):
+        logger.debug('Player %s with selected card %s have received a vote from player %s', self.owner_player.player_state_id, self.selected_card.name, playerstate.player_state_id)
         self.voted_by_players.append(playerstate.id)
         self.save()
     def voted_by_playerstate(self, playerstate):
@@ -333,15 +344,24 @@ class PlayerPlay(models.Model):
     It caches the value in player's point field. Once the round is called, 
     it is safe to directly ask for the points by accessing points field
     '''
-    def compute_round_scores(self, storyteller_card, total_plays):
+    def compute_round_scores(self, storyteller_play, total_plays):
+        logger.debug( '---- SCORES FOR  %s ----------',  self.owner_player)
         total_votes = len(self.voted_by_players)
         if (self.storyteller):
+            logger.debug( 'This player is the storyteller\n.  total votes:  %d \n  total players voting: %d', total_votes, total_plays)
             if ((total_votes != total_plays) and (total_votes > 0)):
                 self.points = 3
         else:
-            self.points = total_votes
+            points_for_discover_storyteller_card = 0
+            logger.debug( 'this player select card %s', self.selected_card)
+            if (storyteller_play.voted_by_playerstate(self.owner_player)):              
+                logger.debug('This player  discovered storyteller card!')
+                points_for_discover_storyteller_card = 3
+            self.points =  total_votes +  points_for_discover_storyteller_card
         self.owner_player.add_round_points(self.points)
+        logger.debug('player round points: %d \n player total points so far: %d', self.points, self.owner_player.points)
         self.save()
+        logger.debug('---- END SCORES -----')
         return self.points
     
 class GameRound(models.Model):
@@ -362,12 +382,11 @@ class GameRound(models.Model):
         '@type selected_card: Card'
         if not self.opened:
             raise ValueError('This game round is already closed!')
-        print '--------'
-        print self.plays.all()
-        print '--------'
         if self.plays.filter(owner_player=playerstate).exists():
             raise ValueError("The player has already chosen a card on this round!")
         unchosen_cards = playerstate.remaining_cards(selected_card)
+        logger.debug('Play for player %s. \n           selected card: %s.\n           Unchosen cards are: %s', 
+                     playerstate.player_state_id, selected_card.name, unchosen_cards)
         new_play = PlayerPlay.objects.create(game_round = self,
                                              owner_player = playerstate,
                                              selected_card = selected_card,
@@ -394,7 +413,10 @@ class GameRound(models.Model):
         return self.game.players_count() == (votes+1)
     
     def storyteller_chosen_card(self):
-        return self.plays.get(storyteller=True).selected_card
+        return self.storyteller_play().selected_card
+    
+    def storyteller_play(self):
+        return self.plays.get(storyteller=True)
     
     def get_chosen_cards(self):
         cards = []
@@ -421,7 +443,7 @@ class GameRound(models.Model):
         if not self.opened:
             raise ValueError('This game round is already closed!')
         if self.get_playerplay_voted_by_playerstate(playerstate):
-            raise ValueError('The player ' +  playerstate.player.name + ' already voted on this round!')
+            raise ValueError(str.format('The player %s  already voted on this round!', playerstate.player.name ))
         play =  self.get_playerplay_for_card(selected_card)
         play.vote_playerstate(playerstate)
         if (self.all_players_voted()):
@@ -438,10 +460,11 @@ class GameRound(models.Model):
         self.opened = False
         all_plays = self.plays.all()
         total_plays = all_plays.count()
-        storyteller_card = self.storyteller_chosen_card()
+        storyteller_play = self.storyteller_play()
+        logger.debug('STORY TELLER SELECTED CARD IS  %s',  storyteller_play.selected_card)
         for play in all_plays:
             '@type play: PlayerPlay'
-            play.compute_round_scores(storyteller_card, total_plays)
+            play.compute_round_scores(storyteller_play, total_plays)
             
         
             

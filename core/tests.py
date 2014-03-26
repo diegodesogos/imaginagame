@@ -8,6 +8,10 @@ Replace this with more appropriate tests for your application.
 from django.test import TestCase
 from core.models import Game, Card, Player, GameState, Deck
 
+import core.const
+import logging
+logger =  core.const.configureLogger('models')
+
 class GameTest(TestCase):
     def setUp(self):
         '@type game: Game'
@@ -101,12 +105,9 @@ class GameTest(TestCase):
         selected_card3 = playergamestate2.get_card(2)
         game.play_card_chosen(playergamestate2, selected_card3)
         cards = game.get_current_round_chosen_cards()
-        print '---- CARDS IN PLAY---'
-        print cards
-        print '---- END CARDS IN PLAY---'
-        print '---- STORY TELLER CHOSEN CARD'
-        print game.get_current_round_storyteller_chosen_card()
-        print '---- END STORY TELLER CHOSEN CARD---'
+        logger.debug('---- CARDS IN PLAY---\n %s \ END CARDS IN PLAY', cards)
+        if core.const.LOG_LEVEL == logging.DEBUG:
+            logger.debug('---- STORY TELLER CHOSEN CARD: %s ', game.get_current_round_storyteller_chosen_card())
         selectedcard1 = cards[0]
         selectedcard2 = cards[0]
         game.vote_card(playergamestate1, selectedcard1)
@@ -114,4 +115,52 @@ class GameTest(TestCase):
         game.vote_card(playergamestate2, selectedcard2)
         self.assertEqual(game.current_state, GameState.WAITING_STORYTELLER_NEW_ROUND)
         #TODO make asserts of game score for each player
+        
+        
+    def prepare_round(self, game, storyteller, playergamestate1, playergamestate2, storyteller_card, player1_card, player2_card):
+        self.assertEqual(game.current_state, GameState.WAITING_STORYTELLER_NEW_ROUND)
+        game.new_round(storyteller, storyteller_card, 'I have selected the card ' + storyteller_card.name)
+        self.assertEqual(game.current_state, GameState.WAITING_PLAYERS_CHOSEN_CARDS)
+        game.play_card_chosen(playergamestate1, player1_card)
+        game.play_card_chosen(playergamestate2, player2_card)
+        self.assertEqual(game.current_state, GameState.VOTING)           
+        
+    def test_full_game_cycle(self):
+        '@type game: Game'
+        game = Game.objects.get(board_id='board 1')
+        #prepare to start round 1
+        storyteller = game.current_storyteller_playergamestate()
+        playergamestate1 = game.get_playergamestate_for_player(Player.objects.get(name='player' + str(1)))
+        playergamestate2 = game.get_playergamestate_for_player(Player.objects.get(name='player' + str(2)))
+        storyteller_card = storyteller.get_card(0)
+        player1_card = playergamestate1.get_card(0)
+        player2_card = playergamestate2.get_card(0)
+        
+        logger.debug('---------------GAME CYCLE, ROUND START')
+        self.prepare_round(game, storyteller, playergamestate1, playergamestate2, storyteller_card, player1_card, player2_card)
+        
+        logger.debug('Round cards are: %s', game.get_current_round_chosen_cards())
+        
+        game.vote_card(playergamestate1, storyteller_card)
+        #cannot choose owns card
+        self.assertRaises(ValueError, game.vote_card, playergamestate2, player2_card)
+        #cannot vote again
+        self.assertRaises(ValueError, game.vote_card, playergamestate1, player2_card)
+        
+        self.assertEqual(game.current_state, GameState.VOTING)
+        
+        game.vote_card(playergamestate2, player1_card)
+        
+        self.assertEqual(game.current_state, GameState.WAITING_STORYTELLER_NEW_ROUND)
+        
+        #get updated versions of each player and game
+        storyteller =  game.get_playergamestate_for_player(Player.objects.get(name='player' + str(0)))
+        playergamestate1 =  game.get_playergamestate_for_player(Player.objects.get(name='player' + str(1)))
+        playergamestate2 =  game.get_playergamestate_for_player(Player.objects.get(name='player' + str(2)))        
+        #storyteller card found by player 1, not found by player 2 who chosen player 1 card
+
+        self.assertEqual(3, storyteller.points)
+        self.assertEqual(4, playergamestate1.points)
+        self.assertEqual(0, playergamestate2.points)
+        logger.debug('---------------GAME CYCLE, ROUND END')
         
