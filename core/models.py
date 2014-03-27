@@ -131,21 +131,16 @@ class Game(models.Model):
         if not rounds:
             return None
         return rounds.reverse()[0]
-    def current_storyteller_playergamestate(self):
-        '@rtype PlayerGameState'
+    
+        
+
+    def next_storyteller_playergamestate(self):
         last_round = self.current_round()
         if not last_round:
             #get first PlayerGameState from player game states
             return self.playergamestates.order_by('order')[0]
-        else:
-            #get the storyteller from the last round played
-            return last_round.storyteller_player
-    def next_storyteller_playergamestate(self):
-        last_round = self.current_round()
-        if not last_round:
-            return self.current_storyteller_playergamestate()
         '@type PlayerGameState'
-        current_storyteller_order = self.current_storyteller_playergamestate().order
+        current_storyteller_order = last_round.storyteller_player.order
         next_storyteller_order = (current_storyteller_order + 1) % self.playergamestates.all().count()
         return self.playergamestates.get(order=next_storyteller_order)
     
@@ -169,7 +164,7 @@ class Game(models.Model):
         if current_round and current_round.opened:
             raise ValueError('There is a game round already in progress for game ' + self.board_id)
         #check player is the current story teller
-        if playerstate != self.current_storyteller_playergamestate():
+        if playerstate != self.next_storyteller_playergamestate():
             raise ValueError('Only current storyteller can create a new game round. ')
         #check selected card belongs to storyteller
         if not playerstate.has_card(selected_card):
@@ -240,6 +235,8 @@ class Game(models.Model):
             raise ValueError('Player cannot vote to its selected card! ' + self.board_id)
         current_round.vote_card(playerstate, selected_card)
         if not current_round.opened:
+            logger.debug('Round %s closed, preparing for next round', current_round.id)
+            logger.debug('Remaining cards in deck: %s', self.remaining_cards)
             self.prepare_for_next_round(current_round)
     
     '''
@@ -254,9 +251,12 @@ class Game(models.Model):
             playerstate.points += current_round.get_current_play_for_playerstate(playerstate).points
             if self.points_goal > 0 and playerstate.points >= self.points_goal:
                 self.current_state = GameState.FINISHED
+                return
         if self.are_enough_cards_for_another_round():
+            logger.debug('Drawing cards for next round')
             self.draw_cards()
         else:
+            logger.debug('Not enough cards for another round, game ended')
             self.current_state = GameState.FINISHED
         self.save()
     
@@ -346,22 +346,37 @@ class PlayerPlay(models.Model):
     '''
     def compute_round_scores(self, storyteller_play, total_plays):
         logger.debug( '---- SCORES FOR  %s ----------',  self.owner_player)
-        total_votes = len(self.voted_by_players)
-        if (self.storyteller):
-            logger.debug( 'This player is the storyteller\n.  total votes:  %d \n  total players voting: %d', total_votes, total_plays)
-            if ((total_votes != total_plays) and (total_votes > 0)):
-                self.points = 3
+        total_votes_for_this_player_card = len(self.voted_by_players)
+        total_votes_to_storyteller_card = len(storyteller_play.voted_by_players)
+
+        all_found_storyteller_or_none_dit_it = total_votes_to_storyteller_card == total_plays-1 or total_votes_to_storyteller_card == 0
+        round_points_for_this_player = 0      
+          
+        #Rule 1: If all the players have found the storyteller's image, 
+        #or if none have found it, then the storyteller doesn't 
+        #score any points and everyone else scores 2 points
+        if all_found_storyteller_or_none_dit_it:
+            if not self.storyteller:
+                logger.debug('Round %d, Player %s gets 2 points', self.game_round.id, self.owner_player)
+                round_points_for_this_player = 2
         else:
-            points_for_discover_storyteller_card = 0
-            logger.debug( 'this player select card %s', self.selected_card)
-            if (storyteller_play.voted_by_playerstate(self.owner_player)):              
-                logger.debug('This player  discovered storyteller card!')
-                points_for_discover_storyteller_card = 3
-            self.points =  total_votes +  points_for_discover_storyteller_card
-        self.owner_player.add_round_points(self.points)
-        logger.debug('player round points: %d \n player total points so far: %d', self.points, self.owner_player.points)
+            #Rule 2: In any other case, the storyteller scores 3 points
+            #and so do the players who found his card.
+            if self.storyteller or storyteller_play.voted_by_playerstate(self.owner_player):
+                logger.debug('Round %d, Player %s gets 3 points for being the storyteller or voting to storyteller card', self.game_round.id, self.owner_player)
+                round_points_for_this_player = 3
+                    
+        #Rule 3: Each player, except the storyteller scores one point 
+        #for each vote that was placed on his or her card
+        if not self.storyteller:
+            logger.debug('Round %d, Player %s gets %d points for other players voting its card', self.game_round.id, self.owner_player, total_votes_for_this_player_card)
+            round_points_for_this_player = round_points_for_this_player + total_votes_for_this_player_card
+            
+        self.points = round_points_for_this_player
+        self.owner_player.add_round_points(round_points_for_this_player)
+        logger.debug('Player round points: %d \nPlayer total points so far: %d', self.points, self.owner_player.points)
         self.save()
-        logger.debug('---- END SCORES -----')
+        logger.debug('---- END SCORES FOR %s -----', self.owner_player)
         return self.points
     
 class GameRound(models.Model):
@@ -422,6 +437,7 @@ class GameRound(models.Model):
         cards = []
         for play in self.plays.all():
             cards.append(play.selected_card)
+        random.shuffle(cards)    
         return cards
     
     def get_current_play_for_playerstate(self, playerstate):
@@ -448,6 +464,7 @@ class GameRound(models.Model):
         play.vote_playerstate(playerstate)
         if (self.all_players_voted()):
             self.compute_round_scores()
+            
         self.save()
         
     '''
@@ -457,6 +474,7 @@ class GameRound(models.Model):
     def compute_round_scores(self):
         if not self.opened:
             raise ValueError('This game round is already closed!')
+        logger.debug('Game round %d finished and closed', self.id )
         self.opened = False
         all_plays = self.plays.all()
         total_plays = all_plays.count()
@@ -465,6 +483,7 @@ class GameRound(models.Model):
         for play in all_plays:
             '@type play: PlayerPlay'
             play.compute_round_scores(storyteller_play, total_plays)
+        self.save()
             
         
             
