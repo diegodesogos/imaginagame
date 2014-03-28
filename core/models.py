@@ -20,6 +20,8 @@ class GameState():
         (VOTING, 'VOTING'),
         (FINISHED, 'FINISHED'),
     )
+    
+NUMBER_OF_PLAYERS_CHOICES = [(i,i) for i in range(4,6)]
 
 class Player(models.Model):
     name = models.CharField(max_length=200)
@@ -95,13 +97,14 @@ class Game(models.Model):
     deck = models.ForeignKey(Deck)
     #the cards that will be draw during the game, each time a card is assigned to a player it is removed from this list
     remaining_cards = ListField(models.ForeignKey(Card))
+    min_players = models.IntegerField(default=4)
     creation_date = models.DateTimeField(default=datetime.now, blank=True)
     #can be 0 to play till deck of cards is exhausted
-    points_goal = models.IntegerField(default=30)
+    points_goal = models.IntegerField(default=0)
     current_state = models.CharField(max_length=40,
                                       choices=GameState.CURRENT_GAME_STATE_CHOICES,
                                       default=GameState.WAITING_NEW_PLAYERS)
-                  
+    
     def __unicode__(self):
         return 'Game: unique id ' + self.board_id + \
                 ' Game state: ' + self.current_state    
@@ -148,7 +151,7 @@ class Game(models.Model):
     def start_with_current_players(self):
         if self.current_state != GameState.WAITING_NEW_PLAYERS:
             raise ValueError("Current game state does not allow to start the game!")
-        if self.players_count() < self.min_players_count():
+        if self.players_count() < self.min_players:
             raise ValueError('There are not enough players to start the game!')
         self.current_state = GameState.WAITING_STORYTELLER_NEW_ROUND
         self.draw_cards()
@@ -282,10 +285,7 @@ class Game(models.Model):
     '''how many cards per player'''
     def player_card_count(self):
         return 6
-    
-    '''how many cards per player'''
-    def min_players_count(self):
-        return 3
+
     
     '''
     private draw card_count cards to playerstate

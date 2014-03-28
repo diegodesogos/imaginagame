@@ -43,9 +43,20 @@ indexes:
   - name: __key__
     direction: desc
 
+- kind: core_deck
+  properties:
+  - name: __key__
+    direction: desc
+
 - kind: core_game
   properties:
   - name: __key__
+    direction: desc
+
+- kind: core_game
+  properties:
+  - name: current_state
+  - name: creation_date
     direction: desc
 
 - kind: core_gameround

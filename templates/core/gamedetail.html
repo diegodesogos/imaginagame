@@ -1,0 +1,13 @@
+
+<h1>{{ game.board_id }}</h1>
+
+Number of players: {{ game.min_players }}
+
+Deck: {{ game.deck.name }}
+
+Players:
+<ul>
+{% for playergamestate in game.playergamestates.all %}
+    <li>{{ playergamestate.player.name }}</li>
+{% endfor %}
+</ul>
