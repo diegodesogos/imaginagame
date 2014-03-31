@@ -6,3 +6,7 @@ class NewGameForm(forms.Form):
     number_of_players = forms.ChoiceField(choices=NUMBER_OF_PLAYERS_CHOICES)
     deck =  forms.ModelChoiceField(queryset=Deck.objects.all(), empty_label=None)
     
+
+class JoinGameForm(forms.Form):
+    board_id = forms.CharField(max_length=100)
+    player_name = forms.CharField(max_length=100)

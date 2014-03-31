@@ -21,7 +21,7 @@ class GameState():
         (FINISHED, 'FINISHED'),
     )
     
-NUMBER_OF_PLAYERS_CHOICES = [(i,i) for i in range(4,6)]
+NUMBER_OF_PLAYERS_CHOICES = [(i,i) for i in range(4,7)]
 
 class Player(models.Model):
     name = models.CharField(max_length=200)
@@ -122,6 +122,8 @@ class Game(models.Model):
         new_player_state = PlayerGameState.objects.create(game=self, order = count, player = new_player, player_state_id = player_url)
         logger.debug('Created player %s', new_player_state)
         self.playergamestates.add(new_player_state)
+        if self.players_count() >= self.min_players:
+            self.start_with_current_players()
         self.save()
         return new_player_state
                 
@@ -309,6 +311,8 @@ class Game(models.Model):
         
     def is_game_over(self):
         return self.current_state == GameState.FINISHED
+    def is_waiting_new_players(self):
+        return self.current_state == GameState.WAITING_NEW_PLAYERS
     
 class PlayerPlay(models.Model):
     game_round = models.ForeignKey('GameRound', related_name='plays')

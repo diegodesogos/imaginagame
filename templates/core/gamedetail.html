@@ -7,6 +7,13 @@ Number of players: {{ game.min_players }}
 Deck: {{ game.deck.name }}
 <p>
 
+{% if game.is_waiting_new_players %}
+    <form action="/core/game/{{ game.board_id }}/join" method="post">{% csrf_token %}
+		{{ join_game_form.as_p }}
+		<input type="submit" value="Join" />
+	</form>
+{% endif %}
+
 Players:
 <ul>
 {% for playergamestate in game.playergamestates.all %}

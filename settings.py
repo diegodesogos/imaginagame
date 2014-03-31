@@ -34,6 +34,7 @@ MIDDLEWARE_CLASSES = (
     'autoload.middleware.AutoloadMiddleware',
     
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.transaction.TransactionMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
