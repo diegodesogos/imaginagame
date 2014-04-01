@@ -1,7 +1,0 @@
-
-<h1>{{ game.board_id }}</h1>
-<ul>
-{% for playergamestate in game.playergamestates.all %}
-    <li>{{ playergamestate.player.name }}</li>
-{% endfor %}
-</ul>

@@ -18,13 +18,13 @@ class GameTest(TestCase):
         deck = Deck.objects.create(name='deck1')
         for idx in range(0, 24):
             deck.create_card(url='url' +`idx`, name='card '+`idx`)
-        game = Game.objects.create(board_id='board 1', deck=deck)
+        game = Game.objects.create(board_id='board 1', deck=deck, min_players=3)
 
         for idx in range(0, 3):
             a_player= Player.objects.create(name='player' +`idx`)
             '@type a_playerstate: PlayerGameState'
             game.create_playerstate(a_player)
-        game.start_with_current_players()
+        self.assertEqual(game.current_state, GameState.WAITING_STORYTELLER_NEW_ROUND)    
         game.save()
     
     def tets_game_players_count(self):
@@ -40,13 +40,15 @@ class GameTest(TestCase):
         self.assertEqual(Player.objects.all().count(), 3)
         self.assertEqual(game.board_id, 'board 1')
         self.assertEqual(game.playergamestates.all().count(), 3)
-        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url1')
+        player = Player.objects.get(name="player1")
+        playergamestate = game.playergamestates.get(player=player)
         self.assertEqual(6, len(playergamestate.cards))
         
     def test_game_next_storyteller_when_no_rounds(self):
         '@type game: Game'
         game = Game.objects.get(board_id='board 1')
-        playergamestate = game.playergamestates.get(player_state_id='playerstate_player_url1')
+        player = Player.objects.get(name="player0")
+        playergamestate = game.playergamestates.get(player=player)
         next_storyteller =  game.next_storyteller_playergamestate()
         self.assertEqual(next_storyteller, playergamestate)    
         
@@ -100,13 +102,10 @@ class GameTest(TestCase):
         logger.debug('---- CARDS IN PLAY---\n %s \ END CARDS IN PLAY', cards)
         if core.const.LOG_LEVEL == logging.DEBUG:
             logger.debug('---- STORY TELLER CHOSEN CARD: %s ', game.get_current_round_storyteller_chosen_card())
-        selectedcard1 = cards[0]
-        selectedcard2 = cards[0]
-        game.vote_card(playergamestate1, selectedcard1)
+        game.vote_card(playergamestate1, selected_card3)
         self.assertEqual(game.current_state, GameState.VOTING)
-        game.vote_card(playergamestate2, selectedcard2)
+        game.vote_card(playergamestate2, selected_card2)
         self.assertEqual(game.current_state, GameState.WAITING_STORYTELLER_NEW_ROUND)
-        #TODO make asserts of game score for each player
         
         
     def start_new_round(self, game, storyteller, playergamestate1, playergamestate2, storyteller_card, player1_card, player2_card):

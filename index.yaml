@@ -64,6 +64,11 @@ indexes:
   - name: __key__
     direction: desc
 
+- kind: core_gameround
+  properties:
+  - name: game_id
+  - name: order
+
 - kind: core_player
   properties:
   - name: __key__
@@ -73,6 +78,11 @@ indexes:
   properties:
   - name: __key__
     direction: desc
+
+- kind: core_playergamestate
+  properties:
+  - name: game_id
+  - name: order
 
 - kind: core_playerplay
   properties:

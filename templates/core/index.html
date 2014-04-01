@@ -1,7 +1,13 @@
+<!DOCTYPE h1 PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+</head>
+<body>
+
 {% if latest_game_list %}
     <ul>
     {% for game in latest_game_list %}
-        <li><a href="/core/{{ game.id }}/">{{ game.board_id }}</a></li>
+        <li><a href="/core/game/{{ game.board_id }}/detail">{{ game.board_id }}</a></li>
     {% endfor %}
     </ul>
 {% else %}
@@ -10,3 +16,16 @@
 
 <p/>
 <a href="/core/startnewgame">Start a new game</a>
+
+{% if debug %}
+	<p/>
+	Debugging actions:
+	<form action="/core/debug_re_create_deck_default" method="POST">
+		{% csrf_token %}
+		<input type="submit" value="Re-create default deck of cards" />
+	</form>
+	
+{% endif %}
+
+</body>
+</html>

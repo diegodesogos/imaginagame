@@ -2,7 +2,7 @@ from django.db import models
 from datetime import datetime
 from djangotoolbox.fields import ListField
 import random
-
+import uuid
 import core.const
 logger =  core.const.configureLogger('models')
 
@@ -60,6 +60,7 @@ class PlayerGameState(models.Model):
     player_state_id = models.CharField(max_length=400)
     points = models.IntegerField(default=0)
     cards = ListField(models.ForeignKey(Card))
+    storyteller = models.BooleanField(default=False)
     def __unicode__(self):
         return 'player {0} player_state_id: {1} Points: {2} Cards: {3}'.format(self.player.name,
                                                                                                 self.player_state_id,
@@ -113,14 +114,14 @@ class Game(models.Model):
         if self.current_state != GameState.WAITING_NEW_PLAYERS:
             raise ValueError("Current game state does not allow to add new players!")
         new_player = player  
+        count = self.players_count()
         if not new_player:
-            new_player = Player.objects.create('anon')
+            new_player = Player.objects.create('anon' + `count`)
             new_player.save()
-        count = self.players_count()    
-        next_id = count+1
-        player_url = 'playerstate_player_url'+`next_id`
-        new_player_state = PlayerGameState.objects.create(game=self, order = count, player = new_player, player_state_id = player_url)
-        logger.debug('Created player %s', new_player_state)
+            
+        player_state_id = uuid.uuid4()
+        new_player_state = PlayerGameState.objects.create(game=self, order = count, player = new_player, player_state_id = player_state_id)
+        logger.debug('Created playerstate %s', player_state_id)
         self.playergamestates.add(new_player_state)
         if self.players_count() >= self.min_players:
             self.start_with_current_players()
@@ -156,8 +157,19 @@ class Game(models.Model):
         if self.players_count() < self.min_players:
             raise ValueError('There are not enough players to start the game!')
         self.current_state = GameState.WAITING_STORYTELLER_NEW_ROUND
-        self.draw_cards()
+        self.draw_cards(None)
         self.save()
+        
+    '''
+    private
+    called to assign next storyteller to one of current playerstates
+    '''    
+    def assign_story_teller(self, previous_story_teller):
+        if self.current_state != GameState.WAITING_STORYTELLER_NEW_ROUND:
+            raise ValueError("Current game state does not allow assign next storyteller!")
+        self.next_storyteller_playergamestate().storyteller = True
+        if previous_story_teller:
+            previous_story_teller.storyteller =  False
         
     
     def new_round(self, playerstate, selected_card, sentence):
@@ -237,7 +249,7 @@ class Game(models.Model):
             raise ValueError('This game round is already closed ' + self.board_id)
         play = self.get_current_play_for_playerstate(playerstate)
         if play.selected_card == selected_card:
-            raise ValueError('Player cannot vote to its selected card! ' + self.board_id)
+            raise ValueError('Player cannot vote to his own selected card! ' + self.board_id)
         current_round.vote_card(playerstate, selected_card)
         if not current_round.opened:
             logger.debug('Round %s closed, preparing for next round', current_round.id)
@@ -259,7 +271,7 @@ class Game(models.Model):
                 return
         if self.are_enough_cards_for_another_round():
             logger.debug('Drawing cards for next round')
-            self.draw_cards()
+            self.draw_cards(current_round.storyteller_player)
         else:
             logger.debug('Not enough cards for another round, game ended')
             self.current_state = GameState.FINISHED
@@ -298,7 +310,7 @@ class Game(models.Model):
                         card = self.draw_card()
                         playerstate.add_card(card)
         
-    def draw_cards(self):
+    def draw_cards(self, previous_story_teller):
         if (self.current_state != GameState.FINISHED and len(self.remaining_cards) == 0):
             self.init_remaining_cards_pool()
             self.draw_cards_to_players(self.player_card_count())
@@ -307,6 +319,7 @@ class Game(models.Model):
             if not self.are_enough_cards_for_another_round():
                 raise ValueError('There are not enough cards in the deck!')
             self.draw_cards_to_players(1)
+        self.assign_story_teller(previous_story_teller)
         self.save()
         
     def is_game_over(self):
