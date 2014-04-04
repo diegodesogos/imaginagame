@@ -1,0 +1,30 @@
+{% extends "imagina/base.html" %}
+
+{% block title %}Imagina{% endblock %}
+
+{% block content %}
+
+{% if latest_game_list %}
+    <ul>
+    {% for game in latest_game_list %}
+        <li><a href="/imagina/game/{{ game.board_id }}/detail">{{ game.board_id }}</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No games are available.</p>
+{% endif %}
+
+<p/>
+<a href="/imagina/startnewgame">Start a new game</a>
+
+{% if debug %}
+	<p/>
+	Debugging actions:
+	<form action="/imagina/debug_re_create_deck_default" method="POST">
+		{% csrf_token %}
+		<input type="submit" value="Re-create default deck of cards" />
+	</form>
+	
+{% endif %}
+
+{% endblock content %}

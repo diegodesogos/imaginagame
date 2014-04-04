@@ -1,0 +1,28 @@
+{% extends "imagina/baseplayerboard.html" %}
+
+
+{% block topbar %}
+
+<h1>{{ playerstate.player_state_id }}</h1>
+
+Game status: {{ playerstate.game.current_state }}
+</p>
+Player: {{ playerstate.player.name }}
+</p>
+Choose the image that you think story teller have chosen for the given phrase
+</p>
+
+{% endblock %}
+
+
+{% block playeractions %}
+
+</p>
+	<form action="/imagina/play/{{ playergamestate.player_state_id}}/choosecard" method="post">{% csrf_token %}
+		{{ choose_card_form.as_p }}
+		<input type="submit" value="Choose" />
+	</form>
+
+{% endblock %}
+
+

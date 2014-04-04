@@ -3,7 +3,7 @@ import logging
 LOG_DEFAULT_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
 LOG_LEVEL = logging.DEBUG
 
-def configureLogger(location='imagina.core.root', level=LOG_LEVEL, format=LOG_DEFAULT_FORMAT):
+def configureLogger(location='imagina.imagina.root', level=LOG_LEVEL, format=LOG_DEFAULT_FORMAT):
     logger = logging.getLogger(location)
     logger.setLevel(level)
     #ch = logging.StreamHandler()

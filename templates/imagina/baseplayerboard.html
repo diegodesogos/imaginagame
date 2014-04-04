@@ -1,0 +1,30 @@
+{% extends "imagina/base.html" %}
+
+{% block title %}Player board for {{ playerstate.player.name }}{% endblock %}
+
+
+ {% block topbar %}
+ 	{{ block.super }}
+	<a href="/imagina/game/{{ playerstate.game.board_id }}/detail">Go to Game Board</a>
+ {% endblock %}
+
+
+{% block content %}
+
+    <div id="cardsgrid">
+        {% block cardsgrid %}
+        <ul>
+			{% for card in playerstate.get_cards %}
+				
+			    <li><img src="{{ card.url }}" alt="{{ card.name }}"  style="width: 100px; height: 100px;" /> </li>
+			{% endfor %}
+		</ul>
+        {% endblock %}
+    </div>
+
+    <div id="playeractions">
+        {% block playeractions %}
+        {% endblock %}
+    </div>
+
+{% endblock %}

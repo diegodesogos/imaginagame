@@ -1,0 +1,30 @@
+<!DOCTYPE h1 PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="style.css" />
+    <title>{% block title %}Imagina Game{% endblock %}</title>
+    {% block head_extra %} {% endblock %}
+</head>
+
+<body>
+    <div id="topbar">
+        {% block topbar %}
+        <ul>
+            <li><a href="/">Home</a></li>
+        </ul>
+        {% endblock %}
+    </div>
+
+    <div id="content">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <div id="notificationsbar">
+        {% block notificationsbar %}
+        <ul>
+            Notifications area
+        </ul>
+        {% endblock %}
+    </div>
+</body>
+</html>

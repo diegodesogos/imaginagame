@@ -6,11 +6,11 @@ Replace this with more appropriate tests for your application.
 """
 
 from django.test import TestCase
-from core.models import Game, Card, Player, GameState, Deck
+from imagina.models import Game, Card, Player, GameState, Deck
 
-import core.const
+import imagina.const
 import logging
-logger =  core.const.configureLogger('models')
+logger =  imagina.const.configureLogger('models')
 
 class GameTest(TestCase):
     def setUp(self):
@@ -100,7 +100,7 @@ class GameTest(TestCase):
         game.play_card_chosen(playergamestate2, selected_card3)
         cards = game.get_current_round_chosen_cards()
         logger.debug('---- CARDS IN PLAY---\n %s \ END CARDS IN PLAY', cards)
-        if core.const.LOG_LEVEL == logging.DEBUG:
+        if imagina.const.LOG_LEVEL == logging.DEBUG:
             logger.debug('---- STORY TELLER CHOSEN CARD: %s ', game.get_current_round_storyteller_chosen_card())
         game.vote_card(playergamestate1, selected_card3)
         self.assertEqual(game.current_state, GameState.VOTING)

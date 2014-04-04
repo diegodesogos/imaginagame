@@ -21,10 +21,11 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'djangotoolbox',
+    'django.contrib.staticfiles',
     'permission_backend_nonrel',
     'autoload',
     'dbindexer',
-    'core',
+    'imagina',
     # djangoappengine should come last, so it can override a few manage.py commands
     'djangoappengine',
 )

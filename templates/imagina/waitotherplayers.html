@@ -1,0 +1,30 @@
+{% extends "imagina/baseplayerboard.html" %}
+
+{% block head_extra %} 
+  <meta http-equiv="refresh" content="5">
+{% endblock head_extra%}
+
+{% block topbar %}
+	{{ block.super }}
+<h1>{{ playerstate.player_state_id }}</h1>
+
+Game status: {{ playerstate.game.current_state }}
+</p>
+Player: {{ playerstate.player.name }}
+</p>
+{% if playerstate.storyteller %}
+	This player is the storyteller
+{% endif %}
+</p>
+
+{% endblock topbar %}
+
+
+{% block playeractions %}
+
+</p>
+	Waiting for other players
+
+{% endblock playeractions %}
+
+

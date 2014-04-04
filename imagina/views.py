@@ -4,13 +4,14 @@ from django.shortcuts import render_to_response, get_object_or_404, redirect,\
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods, require_GET, require_POST, require_safe
 import uuid
-from core.models import Game, GameState, Deck, Player, PlayerGameState
+from imagina.models import Game, GameState, Deck, Player, PlayerGameState, Card
 
-import core.const
+import imagina.const
 import logging
-logger =  core.const.configureLogger('views')
+logger =  imagina.const.configureLogger('views')
 
-from core.forms import NewGameForm, JoinGameForm
+from imagina.forms import NewGameForm, JoinGameForm, NewRoundForm,\
+    ChooseCardForm
 from django.template.context import RequestContext
 from django.forms.widgets import HiddenInput
 from django.core.context_processors import csrf
@@ -22,19 +23,38 @@ The view functions to be fired for a given playerstate, all functions expect a r
 All view functions are expected to return a HttpResponse
 '''
 def player_board_when_game_finished(request, playerstate):
-    return render_to_response('core/waitotherplayers.html', {'playerstate': playerstate})
+    return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
 
 def player_board_when_game_voting(request, playerstate):
-    return render_to_response('core/waitotherplayers.html', {'playerstate': playerstate})
+    return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
 
 def player_board_when_game_waiting_new_players(request, playerstate):
-    return render_to_response('core/waitotherplayers.html', {'playerstate': playerstate})
+    return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
 
 def player_board_when_game_choosing_cards(request, playerstate):
-    return render_to_response('core/waitotherplayers.html', {'playerstate': playerstate})
+    game = playerstate.game
+    current_round = game.current_round
+    if current_round:
+        if playerstate.storyteller:
+            #story teller has to wait to other players to finish selecting a card
+            return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})    
+        play = game.get_current_play_for_playerstate(playerstate)
+        choose_card_form = ChooseCardForm(player_cards=playerstate.get_cards())
+        return render_to_response('imagina/showplayercards.html', {'playerstate': playerstate, 
+                                                                   'playerplay' : play, 
+                                                                   'choose_card_form': choose_card_form},
+                                                                   context_instance=RequestContext(request))
+    else:
+        return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
 
 def player_board_when_game_waiting_for_storyteller_new_round(request, playerstate):
-    return render_to_response('core/waitotherplayers.html', {'playerstate': playerstate})
+    if playerstate.storyteller:
+        new_round_form = NewRoundForm(request.POST, player_cards=playerstate.get_cards())
+        return render_to_response('imagina/startnewround.html', 
+                                  {'playerstate': playerstate, 'new_round_form': new_round_form}, 
+                                  context_instance=RequestContext(request))
+    else:   
+        return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
 
 player_board_views = {GameState.FINISHED : player_board_when_game_finished,
                 GameState.VOTING : player_board_when_game_voting,
@@ -43,15 +63,13 @@ player_board_views = {GameState.FINISHED : player_board_when_game_finished,
                 GameState.WAITING_STORYTELLER_NEW_ROUND : player_board_when_game_waiting_for_storyteller_new_round
                 }
 
-
-
 def games_waiting_players():
     return Game.objects.filter(current_state = GameState.WAITING_NEW_PLAYERS).order_by('-creation_date')[:5]
 
 @ensure_csrf_cookie
 def index(request):
     latest_game_list = games_waiting_players()
-    return render_to_response('core/index.html', {'latest_game_list': latest_game_list, 'debugging' : core.const.LOG_LEVEL == logging.DEBUG}, context_instance=RequestContext(request))
+    return render_to_response('imagina/index.html', {'latest_game_list': latest_game_list}, context_instance=RequestContext(request))
 
 def get_or_create_player(player_name):
     players_with_name = Player.objects.filter(name=player_name)
@@ -85,7 +103,7 @@ def start_new_game(request):
             return redirect('game_detail', game_board_id=game.board_id)
     else:
         new_game_form = NewGameForm()
-        return render_to_response('core/startnewgame.html', {'new_game_form': new_game_form, }, context_instance=RequestContext(request))
+        return render_to_response('imagina/startnewgame.html', {'new_game_form': new_game_form, }, context_instance=RequestContext(request))
 
 @ensure_csrf_cookie
 @require_GET
@@ -95,7 +113,7 @@ def game_detail(request, game_board_id):
     if p.is_waiting_new_players():
         join_game_form.board_id = game_board_id
         join_game_form.fields['board_id'].widget = HiddenInput()
-    return render_to_response('core/gamedetail.html', {'game': p, 'join_game_form' : join_game_form}, context_instance=RequestContext(request))
+    return render_to_response('imagina/gamedetail.html', {'game': p, 'join_game_form' : join_game_form}, context_instance=RequestContext(request))
 
 @ensure_csrf_cookie
 @require_http_methods(["GET", "POST"])
@@ -119,27 +137,42 @@ def playerstate_detail(request, player_state_id):
     return player_board_views[playerstate.game.current_state](request, playerstate)
 
 @ensure_csrf_cookie
+@require_POST
+def start_new_round(request, player_state_id):
+    storyteller = get_object_or_404(PlayerGameState, player_state_id=player_state_id)
+    player_cards=storyteller.get_cards()
+    form = NewRoundForm(request.POST, player_cards = player_cards)
+    #HACK can't make work validation on NewRoundForm when changing the queryset, skip it
+    #if form.is_valid():
+    phrase = form.data['phrase']
+    card_data = int(form.data['card'])
+    card = Card.objects.get(id=card_data)
+    game = storyteller.game
+    game.new_round(storyteller, card, phrase)
+    game.save()
+    return redirect('playerstate_detail', player_state_id=storyteller.player_state_id)
+
+@ensure_csrf_cookie
 @require_GET
 def player_detail(request, player_id):
     player = get_object_or_404(Player, id=player_id)
-    return render_to_response('core/playerdetail.html', {'player': player}, context_instance=RequestContext(request))
+    return render_to_response('imagina/playerdetail.html', {'player': player}, context_instance=RequestContext(request))
 
 @require_POST
 def debug_re_create_deck_default(request):
-    if core.const.LOG_LEVEL == logging.DEBUG:
+    if imagina.const.LOG_LEVEL == logging.DEBUG:
         logger.debug('---- Re-creating default deck')
         decks = Deck.objects.filter(name='Default')
         existsDeckDefault = decks.count() > 0
-        if not existsDeckDefault:
-            deck = Deck.objects.create(name='Default')
-        else:
+        if existsDeckDefault:
             deck = decks[0]
-            
+            deck.delete()
+        deck = Deck.objects.create(name='Default')    
         for idx in range(0, 48):
-            url = '//static/decks/default/card24' +`idx` + '.png'
+            url = './static/decks/default/default_' +`idx+1` + '.png'
             existsCard = deck.cards.filter(url=url).count() > 0
             if not existsCard:
-                deck.create_card(url=url, name='deck_default_card '+`idx`)
+                deck.create_card(url=url, name='deck_default_card '+`idx+1`)
     return redirect('index')
     
  

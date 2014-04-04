@@ -3,8 +3,8 @@ from datetime import datetime
 from djangotoolbox.fields import ListField
 import random
 import uuid
-import core.const
-logger =  core.const.configureLogger('models')
+import imagina.const
+logger =  imagina.const.configureLogger('models')
 
 class GameState():
     """game states"""
@@ -167,9 +167,12 @@ class Game(models.Model):
     def assign_story_teller(self, previous_story_teller):
         if self.current_state != GameState.WAITING_STORYTELLER_NEW_ROUND:
             raise ValueError("Current game state does not allow assign next storyteller!")
-        self.next_storyteller_playergamestate().storyteller = True
+        storyteller_state  = self.next_storyteller_playergamestate()
+        storyteller_state.storyteller = True
+        storyteller_state.save()
         if previous_story_teller:
             previous_story_teller.storyteller =  False
+            previous_story_teller.save()
         
     
     def new_round(self, playerstate, selected_card, sentence):
@@ -197,6 +200,7 @@ class Game(models.Model):
                                  storyteller_selected_card = selected_card,
                                  storyteller_sentence_for_selected_card = sentence
                                  )
+        new_game_round.save()
         new_game_round.play_card_chosen(playerstate, selected_card, True)
         return new_game_round
         
@@ -458,7 +462,13 @@ class GameRound(models.Model):
         return cards
     
     def get_current_play_for_playerstate(self, playerstate):
-        return self.plays.get(owner_player=playerstate)
+        plays =  self.plays.filter(owner_player=playerstate)
+        if plays.count() > 1:
+            raise ValueError('found more than one play for the same player in the same round!')
+        if plays.count() == 1:
+            return plays[0]
+        else:
+            return None
     
     def get_playerplay_voted_by_playerstate(self, playerstate):
         for play in self.plays.all():

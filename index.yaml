@@ -88,3 +88,25 @@ indexes:
   properties:
   - name: __key__
     direction: desc
+
+- kind: imagina_game
+  properties:
+  - name: current_state
+  - name: creation_date
+    direction: desc
+
+- kind: imagina_gameround
+  properties:
+  - name: game_id
+  - name: order
+
+- kind: imagina_gameround
+  properties:
+  - name: game_id
+  - name: order
+    direction: desc
+
+- kind: imagina_playergamestate
+  properties:
+  - name: game_id
+  - name: order

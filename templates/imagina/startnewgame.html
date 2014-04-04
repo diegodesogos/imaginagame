@@ -1,0 +1,16 @@
+{% extends "imagina/base.html" %}
+
+{% block title %}Start New Game{% endblock %}
+
+{% block content %}
+
+Start new game
+<p/>
+Choose number of players and deck
+
+<form action="/imagina/startnewgame" method="post">{% csrf_token %}
+	{{ new_game_form.as_p }}
+<input type="submit" value="Create" />
+</form>
+
+{% endblock %}

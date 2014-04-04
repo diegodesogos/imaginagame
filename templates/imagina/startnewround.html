@@ -1,0 +1,27 @@
+{% extends "imagina/baseplayerboard.html" %}
+
+
+{% block topbar %}
+
+<h1>{{ playerstate.player_state_id }}</h1>
+
+Game status: {{ playerstate.game.current_state }}
+</p>
+Player: {{ playerstate.player.name }}
+</p>
+Your turn as story teller, choose an image and write something about it
+</p>
+
+{% endblock %}
+
+
+{% block playeractions %}
+
+</p>
+	<form action="/imagina/play/{{ playerstate.player_state_id}}/startnewround" method="post">{% csrf_token %}
+		{{ new_round_form.as_p }}
+		<input type="submit" value="Start new round" />
+	</form>
+
+{% endblock %}
+

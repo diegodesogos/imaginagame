@@ -1,4 +1,4 @@
-from core.models import Player, Card, Game, PlayerGameState, PlayerPlay, GameRound, Deck
+from imagina.models import Player, Card, Game, PlayerGameState, PlayerPlay, GameRound, Deck
 from django.contrib import admin
 
 admin.site.register(Player)
