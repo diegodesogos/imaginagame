@@ -6,15 +6,19 @@
 
 {% block topbar %}
 	{{ block.super }}
-<h1>{{ playerstate.player_state_id }}</h1>
 
-Game status: {{ playerstate.game.current_state }}
-</p>
-Player: {{ playerstate.player.name }}
-</p>
 {% if playerstate.storyteller %}
 	This player is the storyteller
 {% endif %}
+<p/>
+
+Your choosen card is
+<img src="{{ play.selected_card.url }}" alt="{{ play.selected_card.name }}"  style="width: 100px; height: 100px;" />
+</p>
+
+
+You have voted to card
+<img src="{{ card_voted.url }}" alt="{{ card_voted.name }}"  style="width: 100px; height: 100px;" />
 </p>
 
 {% endblock topbar %}

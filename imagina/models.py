@@ -92,6 +92,9 @@ class PlayerGameState(models.Model):
         self.points = self.points + round_points
         logger.debug("ADDING POINTS TO player %s . Round points: %d . NEW TOTAL: %d", self.player_state_id, round_points, self.points)
         self.save()
+        
+    def get_current_position(self):
+        return self.game.get_current_position(self)
  
 class Game(models.Model):
     board_id = models.CharField(max_length=400)
@@ -129,7 +132,18 @@ class Game(models.Model):
         return new_player_state
                 
     def players_count(self):
-        return self.playergamestates.all().count()            
+        return self.playergamestates.all().count()   
+    
+    def get_current_position(self, playerstate):
+        position = 1
+        for player in self.get_playerstates_by_position():
+            if (player == playerstate):
+                return position
+            position = position + 1
+        return position
+    
+    def get_playerstates_by_position(self):
+        return self.playergamestates.order_by('points')
     
     def current_round(self):
         '@rtype GameRound'
@@ -225,7 +239,7 @@ class Game(models.Model):
         # check opened round
         if not current_round:
             raise ValueError('No current round for game ' + self.board_id)
-        return self.current_round().get_current_play_for_playerstate(playerstate)
+        return current_round.get_current_play_for_playerstate(playerstate)
     
     def get_current_round_chosen_cards(self):
         current_round = self.current_round()

@@ -1,0 +1,23 @@
+{% extends "imagina/baseplayerboard.html" %}
+
+
+{% block topbar %}
+ {{ block.super }}
+
+Choose the image that best fit the story teller's phrase
+<p/>
+
+{% endblock %}
+
+
+{% block playeractions %}
+
+<p/>
+	<form action="/imagina/play/{{ playerstate.player_state_id }}/votecard" method="post">{% csrf_token %}
+		{{ vote_card_form.as_p }}
+		<input type="submit" value="Vote" />
+	</form>
+
+{% endblock playeractions %}
+
+

@@ -1,0 +1,34 @@
+{% extends "imagina/baseplayerboard.html" %}
+
+{% block head_extra %} 
+  <meta http-equiv="refresh" content="5">
+{% endblock head_extra%}
+
+{% block topbar %}
+	{{ block.super }}
+
+You are the story teller
+
+<p/>
+
+Your choosen image is
+<img src="{{ current_round.storyteller_selected_card.url }}" alt="{{ current_round.storyteller_selected_card.name }}"  style="width: 100px; height: 100px;" />
+<p/>
+
+Your phrase describing that image is
+<p/>
+{{ current_round.storyteller_sentence_for_selected_card }}
+
+<p/>
+
+{% endblock topbar %}
+
+
+{% block playeractions %}
+
+</p>
+	Waiting for other players
+
+{% endblock playeractions %}
+
+

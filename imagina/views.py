@@ -23,29 +23,72 @@ The view functions to be fired for a given playerstate, all functions expect a r
 All view functions are expected to return a HttpResponse
 '''
 def player_board_when_game_finished(request, playerstate):
-    return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
+    return render_to_response('imagina/gameover.html', {'playerstate': playerstate,
+                                                        'cards' : playerstate.get_cards()})
 
 def player_board_when_game_voting(request, playerstate):
-    return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
+    game = playerstate.game
+    current_round = game.current_round()
+    if playerstate.storyteller:
+            #story teller has to wait to other players vote their card
+            return render_to_response('imagina/storytellerwaitvotes.html', {'playerstate': playerstate, 
+                                                                            'cards' : playerstate.get_cards(),
+                                                                            'current_round' : current_round})    
+    else:   
+        play = game.get_current_play_for_playerstate(playerstate)
+        playerplay_voted_by_playerstate = current_round.get_playerplay_voted_by_playerstate(playerstate)
+        if playerplay_voted_by_playerstate:
+            #player has already chosen a card and has already voted
+            card_voted = playerplay_voted_by_playerstate.selected_card
+            return render_to_response('imagina/alreadyvotedwait.html', {'playerstate': playerstate, 
+                                                                        'cards' : playerstate.get_cards(),
+                                                                        'play':play,
+                                                                        'current_round' : current_round, 
+                                                                        'card_voted': card_voted})
+        else:
+            #there is a round, waiting this player to vote
+            candidate_cards = current_round.get_chosen_cards()
+            vote_card_form = ChooseCardForm(player_cards=candidate_cards)
+            return render_to_response('imagina/showcandidatecards.html', {'playerstate': playerstate, 
+                                                                          'cards' : candidate_cards,
+                                                                          'playerplay' : play, 
+                                                                          'current_round' : current_round, 
+                                                                          'vote_card_form': vote_card_form},
+                                                                           context_instance=RequestContext(request))
 
 def player_board_when_game_waiting_new_players(request, playerstate):
-    return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
+    return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate,
+                                                                'cards' : playerstate.get_cards(),})
 
 def player_board_when_game_choosing_cards(request, playerstate):
     game = playerstate.game
     current_round = game.current_round
     if current_round:
         if playerstate.storyteller:
-            #story teller has to wait to other players to finish selecting a card
-            return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})    
+            #story teller has to wait to other players select their card
+            return render_to_response('imagina/storytellerwaitselection.html', {'playerstate': playerstate, 
+                                                                                'cards' : playerstate.get_cards(),
+                                                                                'current_round' : current_round})    
         play = game.get_current_play_for_playerstate(playerstate)
-        choose_card_form = ChooseCardForm(player_cards=playerstate.get_cards())
-        return render_to_response('imagina/showplayercards.html', {'playerstate': playerstate, 
-                                                                   'playerplay' : play, 
-                                                                   'choose_card_form': choose_card_form},
-                                                                   context_instance=RequestContext(request))
+        if play:
+            #player has already chosen a card, wait for others to play
+            return render_to_response('imagina/alreadyplayedwait.html', {'playerstate': playerstate, 
+                                                                       'play':play,
+                                                                       'cards' : playerstate.get_cards(),
+                                                                       'current_round' : current_round,
+                                                                       })
+        else:
+            #there is a round, waiting player to choose a card
+            choose_card_form = ChooseCardForm(player_cards=playerstate.get_cards())
+            return render_to_response('imagina/showplayercards.html', {'playerstate': playerstate, 
+                                                                       'cards' : playerstate.get_cards(),
+                                                                       'playerplay' : play, 
+                                                                       'current_round' : current_round, 
+                                                                       'choose_card_form': choose_card_form},
+                                                                       context_instance=RequestContext(request))
     else:
-        return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
+        return render_to_response('imagina/waitingstorytellernewround.html', {'playerstate': playerstate,
+                                                                    'cards' : playerstate.get_cards()})
 
 def player_board_when_game_waiting_for_storyteller_new_round(request, playerstate):
     if playerstate.storyteller:
@@ -54,7 +97,9 @@ def player_board_when_game_waiting_for_storyteller_new_round(request, playerstat
                                   {'playerstate': playerstate, 'new_round_form': new_round_form}, 
                                   context_instance=RequestContext(request))
     else:   
-        return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate})
+        return render_to_response('imagina/waitingstorytellernewround.html', {'playerstate': playerstate,
+                                                                    'cards' : playerstate.get_cards(),
+                                                                    })
 
 player_board_views = {GameState.FINISHED : player_board_when_game_finished,
                 GameState.VOTING : player_board_when_game_voting,
@@ -151,6 +196,41 @@ def start_new_round(request, player_state_id):
     game.new_round(storyteller, card, phrase)
     game.save()
     return redirect('playerstate_detail', player_state_id=storyteller.player_state_id)
+
+
+@ensure_csrf_cookie
+@require_POST
+def choose_card(request, player_state_id):
+    player = get_object_or_404(PlayerGameState, player_state_id=player_state_id)
+    player_cards = player.get_cards()
+    if player.storyteller:
+        raise ValueError("The player is the story teller, it can't choose a card!")
+    form = ChooseCardForm(request.POST, player_cards = player_cards)
+    #HACK can't make work validation on NewRoundForm when changing the queryset, skip it
+    #if form.is_valid():
+    card_data = int(form.data['card'])
+    card = Card.objects.get(id=card_data)
+    game = player.game
+    game.play_card_chosen(player, card)
+    game.save()
+    return redirect('playerstate_detail', player_state_id=player.player_state_id)
+
+@ensure_csrf_cookie
+@require_POST
+def vote_card(request, player_state_id):
+    player = get_object_or_404(PlayerGameState, player_state_id=player_state_id)
+    player_cards = player.get_cards()
+    if player.storyteller:
+        raise ValueError("The player is the story teller, it can't choose a card!")
+    form = ChooseCardForm(request.POST, player_cards = player_cards)
+    #HACK can't make work validation on NewRoundForm when changing the queryset, skip it
+    #if form.is_valid():
+    card_data = int(form.data['card'])
+    card = Card.objects.get(id=card_data)
+    game = player.game
+    game.vote_card(player, card)
+    game.save()
+    return redirect('playerstate_detail', player_state_id=player.player_state_id)
 
 @ensure_csrf_cookie
 @require_GET

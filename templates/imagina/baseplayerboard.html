@@ -6,15 +6,43 @@
  {% block topbar %}
  	{{ block.super }}
 	<a href="/imagina/game/{{ playerstate.game.board_id }}/detail">Go to Game Board</a>
+	<p>
+	Game status: {{ playerstate.game.current_state }}
+	<p>
+	<h1>{{ playerstate.player_state_id }}</h1>
+	
+	<div id="playerdetails">
+	{% block playerdetails %}
+		Player: {{ playerstate.player.name }}
+		<p>
+		Points: {{ playerstate.points }}
+		<p>
+		Position: {{ playerstate.get_current_position }}
+	{% endblock playerdetails%}
+	</div>
+	<div id="otherplayersposition">
+	{% block otherplayersposition %}
+		{% for player in playerstate.game.get_playerstates_by_position %}
+			{% if player != playerstate %}
+				Player: {{ player.player.name }} Points: {{ player.points }} |
+			{% endif %}	
+		{% endfor %}
+	{% endblock otherplayersposition%}
+	<p/>
+	Story teller's phrase:
+	{{ current_round.storyteller_sentence_for_selected_card }}
+	<p/>
+	</div>	
  {% endblock %}
 
 
 {% block content %}
 
+
     <div id="cardsgrid">
         {% block cardsgrid %}
         <ul>
-			{% for card in playerstate.get_cards %}
+			{% for card in cards %}
 				
 			    <li><img src="{{ card.url }}" alt="{{ card.name }}"  style="width: 100px; height: 100px;" /> </li>
 			{% endfor %}

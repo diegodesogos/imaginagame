@@ -2,27 +2,26 @@
 
 
 {% block topbar %}
+ {{ block.super }}
 
-<h1>{{ playerstate.player_state_id }}</h1>
+Choose the image that best fit the story teller's phrase:
+<p/>
 
-Game status: {{ playerstate.game.current_state }}
-</p>
-Player: {{ playerstate.player.name }}
-</p>
-Choose the image that you think story teller have chosen for the given phrase
-</p>
+{{ current_round.storyteller_sentence_for_selected_card }}
+
+<p/>
 
 {% endblock %}
 
 
 {% block playeractions %}
 
-</p>
-	<form action="/imagina/play/{{ playergamestate.player_state_id}}/choosecard" method="post">{% csrf_token %}
+<p/>
+	<form action="/imagina/play/{{ playerstate.player_state_id }}/choosecard" method="post">{% csrf_token %}
 		{{ choose_card_form.as_p }}
 		<input type="submit" value="Choose" />
 	</form>
 
-{% endblock %}
+{% endblock playeractions %}
 
 

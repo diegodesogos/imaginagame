@@ -110,3 +110,8 @@ indexes:
   properties:
   - name: game_id
   - name: order
+
+- kind: imagina_playergamestate
+  properties:
+  - name: game_id
+  - name: points
