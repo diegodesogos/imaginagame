@@ -18,14 +18,21 @@
 		{% endfor %}
 	{% endblock playerpositions %}
 	<p/>
-	</div>	
+	</div>
+	{% if game.current_round and game.current_round.opened %}
+		Currently {{ game.current_round.storyteller_player.player.name }} is playing as the storyteller
+	{% endif %}
+	{% if not game.current_round or not game.current_round.opened %}
+		Waiting for a new round.<p/>
+		Currently {{ game.next_storyteller_playergamestate.player.name }} is playing as the storyteller
+		<p/>
+	{% endif %}
 	
  {% endblock %}
 
 
 {% block content %}
 
-Game state: {{ game.current_state }}
 <p/>
 Number of players: {{ game.min_players }}
 <p>

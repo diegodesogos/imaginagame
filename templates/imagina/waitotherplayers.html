@@ -1,3 +1,4 @@
+
 {% extends "imagina/baseplayerboard.html" %}
 
 {% block head_extra %} 
@@ -8,8 +9,13 @@
 
 {% block playeractions %}
 
-</p>
-	Waiting story teller select an image and a phrase...
-
+<p/>
+	Waiting for more players..
+	<p/>
+	Pass this url to your friends to join this game:
+	
+	<li><a href="/imagina/game/{{ game.board_id }}/detail">{{ game.board_id }}</a></li>
+	<p/>
 {% endblock playeractions %}
+
 

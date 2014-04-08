@@ -42,7 +42,7 @@ class GameTest(TestCase):
         self.assertEqual(game.playergamestates.all().count(), 3)
         player = Player.objects.get(name="player1")
         playergamestate = game.playergamestates.get(player=player)
-        self.assertEqual(6, len(playergamestate.cards))
+        self.assertEqual(game.player_card_count(), len(playergamestate.cards))
         
     def test_game_next_storyteller_when_no_rounds(self):
         '@type game: Game'
@@ -156,6 +156,10 @@ class GameTest(TestCase):
         self.assertEqual(3, playergamestate0.points)
         self.assertEqual(4, playergamestate1.points)
         self.assertEqual(0, playergamestate2.points)
+        card_count = game.player_card_count()
+        self.assertEqual(card_count, len(playergamestate0.cards))
+        self.assertEqual(card_count, len(playergamestate1.cards))
+        self.assertEqual(card_count, len(playergamestate2.cards))
         logger.debug('---------------GAME CYCLE, ROUND 1 END')
         
         self.assertFalse(game.is_game_over())
@@ -191,6 +195,10 @@ class GameTest(TestCase):
         self.assertEqual(3+2+1, playergamestate0.points)
         self.assertEqual(4, playergamestate1.points)
         self.assertEqual(0+2+1, playergamestate2.points)
+        card_count = game.player_card_count()
+        self.assertEqual(card_count, len(playergamestate0.cards))
+        self.assertEqual(card_count, len(playergamestate1.cards))
+        self.assertEqual(card_count, len(playergamestate2.cards))
         logger.debug('---------------GAME CYCLE, ROUND 2 END')
         
         logger.debug(' CARDS REMAINING AFTER ROUND: %s', game.remaining_cards)

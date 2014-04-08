@@ -9,6 +9,15 @@
 	<p>
 	Game status: {{ playerstate.game.current_state }}
 	<p>
+	{% if current_round %}
+		Currently {{ playerstate.game.current_round.storyteller_player.player.name }} is playing as the storyteller
+	{% endif %}
+	{% if not current_round %}
+		Waiting for a new round.<p/>
+		Currently {{ playerstate.game.next_storyteller_playergamestate.player.name }} is playing as the storyteller
+		<p/>
+	{% endif %}
+	<p>
 	<h1>{{ playerstate.player_state_id }}</h1>
 	
 	<div id="playerdetails">
@@ -28,13 +37,19 @@
 			{% endif %}	
 		{% endfor %}
 	{% endblock otherplayersposition%}
-	<p/>
-	Story teller's phrase:
-	{{ current_round.storyteller_sentence_for_selected_card }}
-	<p/>
 	</div>	
- {% endblock %}
-
+	<div>
+		{% block storytellerphrase %}
+		{% if current_round %}
+			<p/>
+				Story teller's phrase:
+				{{ current_round.storyteller_sentence_for_selected_card }}
+			<p/>
+			{% endif %}
+		{% endblock storytellerphrase %}
+	</div>
+	
+{% endblock topbar %}
 
 {% block content %}
 

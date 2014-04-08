@@ -16,9 +16,12 @@ class ChooseCardForm(forms.Form):
 
 class NewRoundForm(ChooseCardForm):
     phrase = forms.CharField(max_length=100, required=True)
+    card = forms.ChoiceField(choices=[])
     def __init__(self, *args, **kwargs):
-        super(ChooseCardForm, self).__init__(*args, **kwargs)
-        
+        player_cards = kwargs.pop('player_cards', None)
+        super(forms.Form, self).__init__(*args, **kwargs)
+        if player_cards:
+            self.fields['card'].choices =  [(card.id,card.name) for card in player_cards]
 
 class JoinGameForm(forms.Form):
     board_id = forms.CharField(max_length=100)

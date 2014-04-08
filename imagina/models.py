@@ -178,13 +178,15 @@ class Game(models.Model):
     private
     called to assign next storyteller to one of current playerstates
     '''    
-    def assign_story_teller(self, previous_story_teller):
+    def assign_story_teller(self, previous_story_teller_param):
         if self.current_state != GameState.WAITING_STORYTELLER_NEW_ROUND:
             raise ValueError("Current game state does not allow assign next storyteller!")
         storyteller_state  = self.next_storyteller_playergamestate()
         storyteller_state.storyteller = True
         storyteller_state.save()
-        if previous_story_teller:
+        if previous_story_teller_param:
+            #get updated version since it maye have chance because of drawing cards!
+            previous_story_teller = self.playergamestates.get(id=previous_story_teller_param.id)
             previous_story_teller.storyteller =  False
             previous_story_teller.save()
         
@@ -474,6 +476,15 @@ class GameRound(models.Model):
             cards.append(play.selected_card)
         random.shuffle(cards)    
         return cards
+    
+    def get_cards_to_vote_for_playerstate(self, playerstate):
+        cards_to_vote = []
+        play = self.get_current_play_for_playerstate(playerstate)
+        if play:
+            for card in self.get_chosen_cards():
+                if card != play.selected_card:
+                    cards_to_vote.append(card)
+        return cards_to_vote
     
     def get_current_play_for_playerstate(self, playerstate):
         plays =  self.plays.filter(owner_player=playerstate)

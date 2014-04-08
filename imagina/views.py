@@ -47,7 +47,7 @@ def player_board_when_game_voting(request, playerstate):
                                                                         'card_voted': card_voted})
         else:
             #there is a round, waiting this player to vote
-            candidate_cards = current_round.get_chosen_cards()
+            candidate_cards = current_round.get_cards_to_vote_for_playerstate(playerstate)
             vote_card_form = ChooseCardForm(player_cards=candidate_cards)
             return render_to_response('imagina/showcandidatecards.html', {'playerstate': playerstate, 
                                                                           'cards' : candidate_cards,
@@ -58,7 +58,9 @@ def player_board_when_game_voting(request, playerstate):
 
 def player_board_when_game_waiting_new_players(request, playerstate):
     return render_to_response('imagina/waitotherplayers.html', {'playerstate': playerstate,
-                                                                'cards' : playerstate.get_cards(),})
+                                                                'cards' : playerstate.get_cards(),
+                                                                'game' : playerstate.game,
+                                                                })
 
 def player_board_when_game_choosing_cards(request, playerstate):
     game = playerstate.game
@@ -92,14 +94,18 @@ def player_board_when_game_choosing_cards(request, playerstate):
 
 def player_board_when_game_waiting_for_storyteller_new_round(request, playerstate):
     if playerstate.storyteller:
-        new_round_form = NewRoundForm(request.POST, player_cards=playerstate.get_cards())
+        cards = playerstate.get_cards()
+        new_round_form = NewRoundForm(request.POST, player_cards=cards)
         return render_to_response('imagina/startnewround.html', 
-                                  {'playerstate': playerstate, 'new_round_form': new_round_form}, 
+                                  {'playerstate': playerstate, 
+                                   'new_round_form': new_round_form,
+                                   'cards' : cards,
+                                   }, 
                                   context_instance=RequestContext(request))
     else:   
         return render_to_response('imagina/waitingstorytellernewround.html', {'playerstate': playerstate,
-                                                                    'cards' : playerstate.get_cards(),
-                                                                    })
+                                                                              'cards' : playerstate.get_cards(),
+                                                                              })
 
 player_board_views = {GameState.FINISHED : player_board_when_game_finished,
                 GameState.VOTING : player_board_when_game_voting,
@@ -143,9 +149,9 @@ def start_new_game(request):
             player = get_or_create_player(player_name)
             #deck = Deck.objects.get(id=deck_id)
             game = Game.objects.create(board_id=uuid.uuid4(), deck=deck, min_players=min_players)
-            game.create_playerstate(player)
+            player_state = game.create_playerstate(player)
             game.save()
-            return redirect('game_detail', game_board_id=game.board_id)
+            return redirect('playerstate_detail', player_state_id= player_state.player_state_id)
     else:
         new_game_form = NewGameForm()
         return render_to_response('imagina/startnewgame.html', {'new_game_form': new_game_form, }, context_instance=RequestContext(request))
@@ -219,10 +225,11 @@ def choose_card(request, player_state_id):
 @require_POST
 def vote_card(request, player_state_id):
     player = get_object_or_404(PlayerGameState, player_state_id=player_state_id)
-    player_cards = player.get_cards()
+    game_round = player.game.current_round()
+    cards_to_vote =  game_round.get_cards_to_vote_for_playerstate(player)
     if player.storyteller:
         raise ValueError("The player is the story teller, it can't choose a card!")
-    form = ChooseCardForm(request.POST, player_cards = player_cards)
+    form = ChooseCardForm(request.POST, player_cards = cards_to_vote)
     #HACK can't make work validation on NewRoundForm when changing the queryset, skip it
     #if form.is_valid():
     card_data = int(form.data['card'])
