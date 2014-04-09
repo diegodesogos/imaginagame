@@ -4,7 +4,8 @@ from django.shortcuts import render_to_response, get_object_or_404, redirect,\
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods, require_GET, require_POST, require_safe
 import uuid
-from imagina.models import Game, GameState, Deck, Player, PlayerGameState, Card
+from imagina.models import Game, GameState, Deck, Player, PlayerGameState, Card,\
+    PlayerPlay, GameRound
 
 import imagina.const
 import logging
@@ -16,6 +17,7 @@ from django.template.context import RequestContext
 from django.forms.widgets import HiddenInput
 from django.core.context_processors import csrf
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.db.models import Q
 
 '''
 The view functions to be fired for a given playerstate, all functions expect a request and a playerstate parameter
@@ -117,10 +119,15 @@ player_board_views = {GameState.FINISHED : player_board_when_game_finished,
 def games_waiting_players():
     return Game.objects.filter(current_state = GameState.WAITING_NEW_PLAYERS).order_by('-creation_date')[:5]
 
+def games_in_progress():
+    return Game.objects.filter(~Q(current_state = GameState.FINISHED))
+
 @ensure_csrf_cookie
 def index(request):
-    latest_game_list = games_waiting_players()
-    return render_to_response('imagina/index.html', {'latest_game_list': latest_game_list}, context_instance=RequestContext(request))
+    return render_to_response('imagina/index.html', {'latest_game_list': games_waiting_players(),
+                                                     'latest_game_in_progress': games_in_progress(),
+                                                     }, 
+                              context_instance=RequestContext(request))
 
 def get_or_create_player(player_name):
     players_with_name = Player.objects.filter(name=player_name)
@@ -150,7 +157,6 @@ def start_new_game(request):
             #deck = Deck.objects.get(id=deck_id)
             game = Game.objects.create(board_id=uuid.uuid4(), deck=deck, min_players=min_players)
             player_state = game.create_playerstate(player)
-            game.save()
             return redirect('playerstate_detail', player_state_id= player_state.player_state_id)
     else:
         new_game_form = NewGameForm()
@@ -200,7 +206,6 @@ def start_new_round(request, player_state_id):
     card = Card.objects.get(id=card_data)
     game = storyteller.game
     game.new_round(storyteller, card, phrase)
-    game.save()
     return redirect('playerstate_detail', player_state_id=storyteller.player_state_id)
 
 
@@ -218,7 +223,6 @@ def choose_card(request, player_state_id):
     card = Card.objects.get(id=card_data)
     game = player.game
     game.play_card_chosen(player, card)
-    game.save()
     return redirect('playerstate_detail', player_state_id=player.player_state_id)
 
 @ensure_csrf_cookie
@@ -236,7 +240,7 @@ def vote_card(request, player_state_id):
     card = Card.objects.get(id=card_data)
     game = player.game
     game.vote_card(player, card)
-    game.save()
+    #TODO if round finished show round results, then go to details
     return redirect('playerstate_detail', player_state_id=player.player_state_id)
 
 @ensure_csrf_cookie
@@ -261,6 +265,23 @@ def debug_re_create_deck_default(request):
             if not existsCard:
                 deck.create_card(url=url, name='deck_default_card '+`idx+1`)
     return redirect('index')
+
+@require_POST
+def debug_reset_game_and_plays_datamodel(request):
+    if imagina.const.LOG_LEVEL == logging.DEBUG:
+        logger.debug("---- Reseting game data model (players, cards and deck won't be affected")
+        logger.debug("----  Removing PlayerPlay..")
+        PlayerPlay.objects.all().delete()
+        logger.debug("----  Removing PlayerGameState...")
+        PlayerGameState.objects.all().delete()
+        logger.debug("----  Removing GameRound...")
+        GameRound.objects.all().delete()
+        logger.debug("----  Removing Games...")
+        Game.objects.all().delete()
+        
+    return redirect('index')     
+    
+    
     
  
 

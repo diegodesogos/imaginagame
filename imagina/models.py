@@ -218,6 +218,7 @@ class Game(models.Model):
                                  )
         new_game_round.save()
         new_game_round.play_card_chosen(playerstate, selected_card, True)
+        self.save()
         return new_game_round
         
     def play_card_chosen(self, playerstate, selected_card):        
@@ -228,6 +229,7 @@ class Game(models.Model):
         playerplay = current_round.play_card_chosen(playerstate, selected_card)
         if (current_round.all_players_chosen_cards()):
             self.current_state = GameState.VOTING
+            self.save()
         return playerplay
 
     def get_playergamestate_for_player(self, player):
@@ -274,20 +276,21 @@ class Game(models.Model):
         if not current_round.opened:
             logger.debug('Round %s closed, preparing for next round', current_round.id)
             logger.debug('Remaining cards in deck: %s', self.remaining_cards)
-            self.prepare_for_next_round(current_round)
+            self._prepare_for_next_round(current_round)
     
     '''
     Private
     All players played a card, all players voted, round is over
     compute scores and prepare for next round
     '''
-    def prepare_for_next_round(self, current_round):
+    def _prepare_for_next_round(self, current_round):
         #next state may be WAITING_STORYTELLER_NEW_ROUND or FINISHED according to scores
         self.current_state = GameState.WAITING_STORYTELLER_NEW_ROUND
         for playerstate in self.playergamestates.all():
             playerstate.points += current_round.get_current_play_for_playerstate(playerstate).points
             if self.points_goal > 0 and playerstate.points >= self.points_goal:
                 self.current_state = GameState.FINISHED
+                self.save()
                 return
         if self.are_enough_cards_for_another_round():
             logger.debug('Drawing cards for next round')
@@ -301,6 +304,7 @@ class Game(models.Model):
         for card in self.deck.get_cards():
             self.remaining_cards.append(card.id)
         random.shuffle(self.remaining_cards)
+        self.save()
             
     def are_enough_cards_for_another_round(self):
         return  len(self.remaining_cards) >= self.players_count()
@@ -329,6 +333,7 @@ class Game(models.Model):
             for _ in range(card_count):
                         card = self.draw_card()
                         playerstate.add_card(card)
+        self.save()
         
     def draw_cards(self, previous_story_teller):
         if (self.current_state != GameState.FINISHED and len(self.remaining_cards) == 0):
@@ -515,15 +520,13 @@ class GameRound(models.Model):
         play =  self.get_playerplay_for_card(selected_card)
         play.vote_playerstate(playerstate)
         if (self.all_players_voted()):
-            self.compute_round_scores()
-            
-        self.save()
+            self._compute_round_scores()
         
     '''
     Private
     called once everybody played
     '''
-    def compute_round_scores(self):
+    def _compute_round_scores(self):
         if not self.opened:
             raise ValueError('This game round is already closed!')
         logger.debug('Game round %d finished and closed', self.id )

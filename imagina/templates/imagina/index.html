@@ -5,13 +5,29 @@
 {% block content %}
 
 {% if latest_game_list %}
+	<p/>
+	Games waiting for players to start
+	<p/>
     <ul>
     {% for game in latest_game_list %}
         <li><a href="/imagina/game/{{ game.board_id }}/detail">{{ game.board_id }}</a></li>
     {% endfor %}
     </ul>
 {% else %}
-    <p>No games are available.</p>
+    <p>No games to join are available.</p>
+{% endif %}
+<p/>
+{% if latest_game_in_progress %}
+	<p/>
+	Games in progress
+	<p/>
+    <ul>
+    {% for game in latest_game_in_progress %}
+        <li><a href="/imagina/game/{{ game.board_id }}/detail">{{ game.board_id }}</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No game in progress.</p>
 {% endif %}
 
 <p/>
@@ -23,6 +39,11 @@
 	<form action="/imagina/debug_re_create_deck_default" method="POST">
 		{% csrf_token %}
 		<input type="submit" value="Re-create default deck of cards" />
+	</form>
+	<p/>
+	<form action="/imagina/debug_reset_game_and_plays_datamodel" method="POST">
+		{% csrf_token %}
+		<input type="submit" value="Reset game data model" />
 	</form>
 	
 {% endif %}
