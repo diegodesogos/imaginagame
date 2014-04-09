@@ -33,19 +33,26 @@
 <p/>
 <a href="/imagina/startnewgame">Start a new game</a>
 
-{% if debug %}
+
+	<div>
+{% block debugging %}	
+{% if debug %}	
 	<p/>
 	Debugging actions:
 	<form action="/imagina/debug_re_create_deck_default" method="POST">
 		{% csrf_token %}
-		<input type="submit" value="Re-create default deck of cards" />
+		<div class="submit-row">
+			<input type="submit" value="Re-create default deck of cards" />
+		</div>
 	</form>
 	<p/>
 	<form action="/imagina/debug_reset_game_and_plays_datamodel" method="POST">
 		{% csrf_token %}
-		<input type="submit" value="Reset game data model" />
+		<div class="submit-row">
+			<input type="submit" value="Reset game data model" />
+		</div>
 	</form>
-	
+	</div>
 {% endif %}
-
+{% endblock debugging %}
 {% endblock content %}
