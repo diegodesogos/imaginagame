@@ -380,6 +380,11 @@ class PlayerPlay(models.Model):
             if playerstate.id == vote:
                 return True
         return False
+    def get_playerstates_voted(self):
+        players = []
+        for vote in self.voted_by_players:
+            players.append(PlayerGameState.objects.get(id=vote))
+        return players
     '''
     Called by GameRound when the round is closed. 
     Computes the round total points obtained by this player.

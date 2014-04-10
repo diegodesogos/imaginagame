@@ -109,11 +109,18 @@ def player_board_when_game_waiting_for_storyteller_new_round(request, playerstat
                                                                               'cards' : playerstate.get_cards(),
                                                                               })
 
+def player_board_when_game_over(request, playerstate):
+    return render_to_response('imagina/gameover.html', {'playerstate': playerstate,
+                                                        'cards' : playerstate.get_cards(),
+                                                        })
+    
+
 player_board_views = {GameState.FINISHED : player_board_when_game_finished,
                 GameState.VOTING : player_board_when_game_voting,
                 GameState.WAITING_NEW_PLAYERS : player_board_when_game_waiting_new_players,
                 GameState.WAITING_PLAYERS_CHOSEN_CARDS : player_board_when_game_choosing_cards,
-                GameState.WAITING_STORYTELLER_NEW_ROUND : player_board_when_game_waiting_for_storyteller_new_round
+                GameState.WAITING_STORYTELLER_NEW_ROUND : player_board_when_game_waiting_for_storyteller_new_round,
+                GameState.FINISHED : player_board_when_game_over
                 }
 
 def games_waiting_players():
@@ -240,8 +247,28 @@ def vote_card(request, player_state_id):
     card = Card.objects.get(id=card_data)
     game = player.game
     game.vote_card(player, card)
-    #TODO if round finished show round results, then go to details
-    return redirect('playerstate_detail', player_state_id=player.player_state_id)
+    player = PlayerGameState.objects.get(id=player.id)
+    game = player.game
+    current_round = game.current_round()
+    if current_round.opened:
+        return redirect('playerstate_detail', player_state_id=player.player_state_id)
+    else:
+        return redirect('round_finished', player_state_id=player.player_state_id)
+      
+
+@require_GET
+def round_finished(request, player_state_id):
+    player = get_object_or_404(PlayerGameState, player_state_id=player_state_id)
+    game = player.game
+    current_round = game.current_round()
+    if current_round.opened:
+        #only show results if round is actually finished!
+        return redirect('playerstate_detail', player_state_id=player.player_state_id)
+    return render_to_response('imagina/roundfinished.html', {'player_state' : player,
+                                                             'current_round' : current_round,
+                                                             'game' : game,
+                                                             'cards' : current_round.get_chosen_cards(),
+                                                            }, context_instance=RequestContext(request))
 
 @ensure_csrf_cookie
 @require_GET

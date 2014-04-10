@@ -1,0 +1,48 @@
+{% extends "imagina/baseplayerboard.html" %}
+
+
+{% block topbar %}
+
+{{ block.super }}
+
+<p/>
+Game round finished.
+<p/>
+
+{% endblock topbar %}
+
+{% block content %}
+{{ block.super }}
+
+<p/>
+Story teller card was: 
+ {{ current_round.storyteller_selected_card.name }}
+ 
+
+{% for playerplay in current_round.plays.all %}
+	<div id="round_player_play_result">
+		<p/>
+	    Player {{ playerplay.owner_player.player.name }} card was {{ playerplay.selected_card }}
+	    <br/>
+	    The card {{ playerplay.selected_card }} was voted by
+	    	<ul>	
+	    	{% for playerstate in playerplay.get_playerstates_voted %}
+	    		<li> {{ playerstate.player.name }} </li>
+	    	{% endfor %}
+	    	</ul>
+    </div>
+{% endfor %}
+
+<p/>
+
+{% endblock content %}
+
+{% block playeractions %}
+
+</p>
+
+<a href="/imagina/play/{{ player_state.player_state_id}}/board"> Continue </a>
+
+
+{% endblock playeractions %}
+
