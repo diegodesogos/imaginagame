@@ -3,7 +3,7 @@
 
 {% block topbar %}
 
-{{ block.super }}
+
 
 <p/>
 Game round finished.
@@ -13,7 +13,6 @@ Game round finished.
 
 {% block content %}
 {{ block.super }}
-
 <p/>
 Story teller card was: 
  {{ current_round.storyteller_selected_card.name }}
@@ -35,6 +34,8 @@ Story teller card was:
 
 <p/>
 
+
+
 {% endblock content %}
 
 {% block playeractions %}
@@ -45,4 +46,6 @@ Story teller card was:
 
 
 {% endblock playeractions %}
+
+
 
