@@ -519,6 +519,7 @@ class GameRound(models.Model):
             raise ValueError(str.format('The player %s  already voted on this round!', playerstate.player.name ))
         play =  self.get_playerplay_for_card(selected_card)
         play.vote_playerstate(playerstate)
+        self.plays.update()
         if (self.all_players_voted()):
             self._compute_round_scores()
         
