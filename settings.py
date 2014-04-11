@@ -65,7 +65,7 @@ AUTHENTICATION_BACKENDS = (
     'permission_backend_nonrel.backends.NonrelPermissionBackend',
 )
 
-ALLOWED_HOST=['.imaginagame.appspot.com']
+ALLOWED_HOSTS = ['.imaginagame.appspot.com']
 
 # This test runner captures stdout and associates tracebacks with their
 # corresponding output. Helps a lot with print-debugging.
