@@ -1,7 +1,16 @@
 import logging
 
+from settings import get_gae_debug
+
+def get_log_level():
+    isDebugEnabled =  get_gae_debug()
+
+    if isDebugEnabled:
+        return logging.DEBUG
+    return logging.INFO
+
 LOG_DEFAULT_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = get_log_level()
 
 def configureLogger(location='imagina.imagina.root', level=LOG_LEVEL, format=LOG_DEFAULT_FORMAT):
     logger = logging.getLogger(location)

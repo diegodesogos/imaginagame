@@ -38,53 +38,17 @@ indexes:
   - name: __key__
     direction: desc
 
-- kind: core_card
+- kind: imagina_card
   properties:
   - name: __key__
     direction: desc
 
-- kind: core_deck
+- kind: imagina_deck
   properties:
   - name: __key__
     direction: desc
 
-- kind: core_game
-  properties:
-  - name: __key__
-    direction: desc
-
-- kind: core_game
-  properties:
-  - name: current_state
-  - name: creation_date
-    direction: desc
-
-- kind: core_gameround
-  properties:
-  - name: __key__
-    direction: desc
-
-- kind: core_gameround
-  properties:
-  - name: game_id
-  - name: order
-
-- kind: core_player
-  properties:
-  - name: __key__
-    direction: desc
-
-- kind: core_playergamestate
-  properties:
-  - name: __key__
-    direction: desc
-
-- kind: core_playergamestate
-  properties:
-  - name: game_id
-  - name: order
-
-- kind: core_playerplay
+- kind: imagina_game
   properties:
   - name: __key__
     direction: desc
@@ -106,6 +70,11 @@ indexes:
   - name: order
     direction: desc
 
+- kind: imagina_player
+  properties:
+  - name: __key__
+    direction: desc
+
 - kind: imagina_playergamestate
   properties:
   - name: game_id
@@ -115,3 +84,8 @@ indexes:
   properties:
   - name: game_id
   - name: points
+
+- kind: imagina_playerplay
+  properties:
+  - name: __key__
+    direction: desc

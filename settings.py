@@ -5,6 +5,18 @@ from djangoappengine.settings_base import *
 
 import os
 
+def get_gae_debug():
+    server =  os.environ.get("SERVER_SOFTWARE")
+
+    if server is None:
+        return False  # Unexpected, disable DEBUG.
+
+    software, version = server.split("/", 1)
+    return software == "Development"
+
+
+DEBUG = get_gae_debug()
+
 # Activate django-dbindexer for the default database
 DATABASES['native'] = DATABASES['default']
 DATABASES['native']['DEV_APPSERVER_OPTIONS'] = { 'high_replication': True, 'use_sqlite': True }
