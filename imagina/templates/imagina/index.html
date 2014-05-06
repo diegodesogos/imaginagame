@@ -39,12 +39,15 @@
 {% if debug %}	
 	<p/>
 	Debugging actions:
+	<!--
+	leave always on to test easily on GAE 
 	<form action="/imagina/debug_re_create_deck_default" method="POST">
 		{% csrf_token %}
 		<div class="submit-row">
 			<input type="submit" value="Re-create default deck of cards" />
 		</div>
 	</form>
+	 -->
 	<p/>
 	<form action="/imagina/debug_reset_game_and_plays_datamodel" method="POST">
 		{% csrf_token %}
@@ -55,4 +58,19 @@
 	</div>
 {% endif %}
 {% endblock debugging %}
+<!-- remove this once the model and view is mature enough:
+---------
+-->
+<p/>
+Debugging actions:
+	<form action="/imagina/re_create_deck_default" method="POST">
+		{% csrf_token %}
+		<div class="submit-row">
+			<input type="submit" value="Re-create default deck of cards" />
+		</div>
+	</form>
+<!-- 
+---------
+-->
+	
 {% endblock content %}

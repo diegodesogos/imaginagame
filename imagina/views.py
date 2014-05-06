@@ -1,23 +1,27 @@
 # Create your views here.
+import logging
+import uuid
+
+from django.db.models import Q
+from django.forms.widgets import HiddenInput
+from django.http import HttpResponse
 from django.shortcuts import render_to_response, get_object_or_404, redirect,\
     render
-from django.http import HttpResponse
-from django.views.decorators.http import require_http_methods, require_GET, require_POST, require_safe
-import uuid
-from imagina.models import Game, GameState, Deck, Player, PlayerGameState, Card,\
-    PlayerPlay, GameRound
+from django.template.context import RequestContext
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_http_methods, require_GET, require_POST
 
 import imagina.const
-import logging
-logger =  imagina.const.configureLogger('views')
-
 from imagina.forms import NewGameForm, JoinGameForm, NewRoundForm,\
     ChooseCardForm
-from django.template.context import RequestContext
-from django.forms.widgets import HiddenInput
-from django.core.context_processors import csrf
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.db.models import Q
+from imagina.models import Game, GameState, Deck, Player, PlayerGameState, Card,\
+    PlayerPlay, GameRound
+from django.db import transaction
+
+
+logger =  imagina.const.configureLogger('views')
+
+
 
 '''
 The view functions to be fired for a given playerstate, all functions expect a request and a playerstate parameter
@@ -279,19 +283,33 @@ def player_detail(request, player_id):
 @require_POST
 def debug_re_create_deck_default(request):
     if imagina.const.LOG_LEVEL == logging.DEBUG:
-        logger.debug('---- Re-creating default deck')
-        decks = Deck.objects.filter(name='Default')
-        existsDeckDefault = decks.count() > 0
-        if existsDeckDefault:
-            deck = decks[0]
-            deck.delete()
-        deck = Deck.objects.create(name='Default')    
-        for idx in range(0, 48):
-            url = './static/decks/default/default_' +`idx+1` + '.png'
-            existsCard = deck.cards.filter(url=url).count() > 0
-            if not existsCard:
-                deck.create_card(url=url, name='deck_default_card '+`idx+1`)
+        return re_create_deck_default(request)
     return redirect('index')
+
+@require_POST
+def re_create_deck_default(request):
+    logger.debug('---- Re-creating default deck')
+    decks = Deck.objects.filter(name='Default')
+    existsDeckDefault = decks.count() > 0
+    if existsDeckDefault:
+        internalDeleteAll(Card)
+        deck = decks[0]
+        deck.delete()
+    deck = Deck.objects.create(name='Default')    
+    for idx in range(0, 28):
+        url = './static/decks/default/default_' +`idx+1` + '.png'
+        existsCard = deck.cards.filter(url=url).count() > 0
+        if not existsCard:
+            deck.create_card(url=url, name='deck_default_card '+`idx+1`)
+    return redirect('index')
+
+def internalDeleteAll(cls):
+    #fix problem with You can't query against more than 30 __in filter value combinations
+    #see https://github.com/django-nonrel/djangoappengine/issues/43
+    query_set = cls.objects.order_by().only("pk") # No ordering, pull the least info possible.
+    with transaction.commit_on_success():
+        for model in query_set:
+            model.delete()
 
 @require_POST
 def debug_reset_game_and_plays_datamodel(request):

@@ -13,5 +13,6 @@ urlpatterns = patterns('imagina.views',
     ('^game/(?P<game_board_id>[-\w\d]+)/join$', 'join_game'),
     ('debug_re_create_deck_default', 'debug_re_create_deck_default'),
     ('debug_reset_game_and_plays_datamodel', 'debug_reset_game_and_plays_datamodel'),
+    ('re_create_deck_default', 'debug_re_create_deck_default'),
 )
 
