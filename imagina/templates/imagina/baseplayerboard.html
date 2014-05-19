@@ -59,7 +59,12 @@
         <ul>
 			{% for card in cards %}
 				
-			    <li><img src="{{ card.url }}" alt="{{ card.name }}"  style="width: 100px; height: 100px;" /> </li>
+			    <li><a href="{{ card.url }}">
+				    	<img src="{{ card.url }}" alt="{{ card.name }}"  style="width: 20%; height: auto;" /> 
+				    	<br>
+				    	{{ card.name }}
+			    	</a>
+		    	</li>
 			{% endfor %}
 		</ul>
         {% endblock %}

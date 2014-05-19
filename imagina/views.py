@@ -265,7 +265,7 @@ def round_finished(request, player_state_id):
     player = get_object_or_404(PlayerGameState, player_state_id=player_state_id)
     game = player.game
     current_round = game.current_round()
-    if current_round.opened:
+    if current_round is None or current_round.opened:
         #only show results if round is actually finished!
         return redirect('playerstate_detail', player_state_id=player.player_state_id)
     return render_to_response('imagina/roundfinished.html', {'player_state' : player,

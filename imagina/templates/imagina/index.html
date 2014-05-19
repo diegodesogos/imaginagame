@@ -58,19 +58,6 @@
 	</div>
 {% endif %}
 {% endblock debugging %}
-<!-- remove this once the model and view is mature enough:
----------
--->
-<p/>
-Debugging actions:
-	<form action="/imagina/re_create_deck_default" method="POST">
-		{% csrf_token %}
-		<div class="submit-row">
-			<input type="submit" value="Re-create default deck of cards" />
-		</div>
-	</form>
-<!-- 
----------
--->
+
 	
 {% endblock content %}
